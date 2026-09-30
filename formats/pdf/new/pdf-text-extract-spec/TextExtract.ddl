@@ -6,90 +6,42 @@ import CMap
 import ContentStream
 import Fonts
 
-def ExtractState =
-  struct
-    font      : maybe Font
-    fontCache : [ Ref -> Font ]
-    inText    : bool
-    output    : builder (uint 16)
-
 -- ENTRY
-def TextInCatalogPage
-  (state : ExtractState)
-  (c : PdfCatalog) : ExtractState =
+def TextInCatalogPage (c : PdfCatalog) : {} =
   block
     let ?stdEncodings = c.stdEncodings
-    TextInPageTree
-      block
-        font      = nothing
-        fontCache = state.fontCache
-        inText    = false
-        output    = state.output
-      c.pageTree
+    ResetPage
+    TextInPage c.page
 
-def TextInPageTree (state : ExtractState) (t : PdfPageTree) =
-  case t of
-    Node kids -> for (s = state; x in kids) (TextInPageTree s x)
-    Leaf p    -> TextInPage state p
-
-def TextInPage (state : ExtractState) (p : PdfPage) =
+def TextInPage (p : PdfPage) =
   case p of
-    EmptyPage -> state
+    EmptyPage -> Accept
     ContentStreams content ->
       block
         let ?resources = content.resources
-        TextInPageContnet state content
+        TextInPageContnet content
 
-def TextInPageContnet (state : ExtractState) (p : PdfPageContent) =
+def TextInPageContnet (p : PdfPageContent) =
   block
     let ?instrs = p.data
-    FindTextOnPage state 0
+    FindTextOnPage false 0 0
 
 def GetOperand i = (Index ?instrs i : ContentStreamEntry) is value
 
-def SelectFont (state : ExtractState) mbValue : ExtractState =
+def SelectFont mbValue =
   case mbValue of
-    nothing ->
-      block
-        font      = nothing
-        fontCache = state.fontCache
-        inText    = state.inText
-        output    = state.output
+    nothing -> SetFont nothing
     just value ->
       case value of
-        ref r ->
-          case lookup r state.fontCache of
-            just font ->
-              block
-                font = just font
-                fontCache = state.fontCache
-                inText = state.inText
-                output = state.output
-            nothing ->
-              block
-                let f = Font value
-                font = just f
-                fontCache = insert r f state.fontCache
-                inText = state.inText
-                output = state.output
-                
-        _ ->
-          block
-            font = just (Font value)
-            fontCache = state.fontCache
-            inText = state.inText
-            output = state.output
+        ref r -> SetFont (just (LoadFontByRef ?stdEncodings r))
+        _ -> SetFont (just (Font value))
 
-def setInText (state : ExtractState) inText : ExtractState =
-  block
-    font = state.font
-    fontCache = state.fontCache
-    inText = inText
-    output = state.output
-
-def FindTextOnPage (state : ExtractState) i =
+def FindTextOnPage
+  (inText : bool)
+  (operandCount : uint 64)
+  (i : uint 64) : {} =
   case Optional (Index ?instrs i) of
-    nothing -> state
+    nothing -> Accept
     just instr ->
       case instr of
 
@@ -97,71 +49,97 @@ def FindTextOnPage (state : ExtractState) i =
           case op of
 
             BT ->
-              FindTextOnPage (setInText state true) (i+1)
+              block
+                BeginText
+                FindTextOnPage true 0 (i+1)
 
             ET ->
-              FindTextOnPage (setInText state false) (i+1)
+              block
+                EndText
+                FindTextOnPage false 0 (i+1)
 
             Tj ->
-              if state.inText
-                then
-                  block
-                    let next = DecodeText state (GetOperand (i - 1) is string)
-                    FindTextOnPage next (i+1)
-                else FindTextOnPage state (i+1)
+              block
+                if inText && operandCount == 1
+                  then DecodeText (GetOperand (i - 1) is string)
+                  else Accept
+                FindTextOnPage inText 0 (i+1)
 
 
-            quote, dquote ->
-              if state.inText
-                then
-                  block
-                    let next = EmitUtf16 state [ '\n' as uint 16 ]
-                    let next = DecodeText next (GetOperand (i - 1) is string)
-                    FindTextOnPage next (i+1)
-                else FindTextOnPage state (i+1)
+            quote ->
+              block
+                if inText && operandCount == 1
+                  then
+                    block
+                      EmitUtf16 [ '\n' as uint 16 ]
+                      DecodeText (GetOperand (i - 1) is string)
+                  else Accept
+                FindTextOnPage inText 0 (i+1)
 
-            Td, TD, T_star ->
-              if state.inText
-                then
-                  block
-                    let next = EmitUtf16 state [ '\n' as uint 16 ]
-                    FindTextOnPage next (i+1)
-                else FindTextOnPage state (i+1)
+            dquote ->
+              block
+                if inText && operandCount == 3
+                  then
+                    block
+                      EmitUtf16 [ '\n' as uint 16 ]
+                      DecodeText (GetOperand (i - 1) is string)
+                  else Accept
+                FindTextOnPage inText 0 (i+1)
+
+            Td, TD ->
+              block
+                if inText && operandCount == 2
+                  then EmitUtf16 [ '\n' as uint 16 ]
+                  else Accept
+                FindTextOnPage inText 0 (i+1)
+
+            T_star ->
+              block
+                if inText && operandCount == 0
+                  then EmitUtf16 [ '\n' as uint 16 ]
+                  else Accept
+                FindTextOnPage inText 0 (i+1)
 
             TJ ->
-              if state.inText
-                then
-                  block
-                    let next =
-                      for (next = state; x in (GetOperand (i - 1) is array))
+              block
+                if inText && operandCount == 1
+                  then
+                    for (done = {}; x in (GetOperand (i - 1) is array))
+                      block
                         case x of
-                          string s -> DecodeText next s
-                          _        -> next
-                    FindTextOnPage next (i+1)
-                else FindTextOnPage state (i+1)
+                          string s -> DecodeText s
+                          _        -> Accept
+                        {}
+                  else Accept
+                FindTextOnPage inText 0 (i+1)
 
             Tf ->
               block
-                let fontName = GetOperand (i - 2) is name
-                let fontValue = Optional (Lookup fontName ?resources.fonts)
-                let nextState = SelectFont state fontValue
-                FindTextOnPage nextState (i+1)
+                if operandCount == 2
+                  then
+                    block
+                      let fontName = GetOperand (i - 2) is name
+                      let fontValue = Optional (Lookup fontName ?resources.fonts)
+                      SelectFont fontValue
+                  else Accept
+                FindTextOnPage inText 0 (i+1)
 
-            _  -> FindTextOnPage state (i+1)
+            _  -> FindTextOnPage inText 0 (i+1)
 
-        _  -> FindTextOnPage state (i+1)
+        value _ ->
+          FindTextOnPage inText (operandCount + 1) (i+1)
 
-def DecodeText (state : ExtractState) str =
+def DecodeText str =
 
-  case state.font of
-    nothing -> Raw state str
+  case CurrentFont of
+    nothing -> Raw str
 
     just f ->
       case (f : Font).toUnicode of
         nothing ->
           if f.subType == "Type1" || f.subType == "Type3"
-            then DecodeTextWithEncoding state f str
-            else Raw state str
+            then DecodeTextWithEncoding f str
+            else Raw str
 
         just cmap ->
           case cmap of
@@ -172,29 +150,31 @@ def DecodeText (state : ExtractState) str =
                 let units =
                   many (output = builder)
                     ParseUnicode output c
-                let next = EmitUtf16 state (build units)
+                EmitUtf16 (build units)
                 SetStream s
-                next
 
 
-def DecodeTextWithEncoding (state : ExtractState) (f : Font) str =
+def DecodeTextWithEncoding (f : Font) str =
   block
     let enc = case f.encoding of
                 nothing  -> ?stdEncodings.std
                 just enc -> enc
-    for (next = state; x in str)
-      case lookup x enc of
-        just us -> EmitUtf16 next us
-        nothing -> EmitUtf16 next [ '.' as uint 16 ]
+    for (done = {}; x in str)
+      block
+        case lookup x enc of
+          just us -> EmitUtf16 us
+          nothing -> EmitUtf16 [ '.' as uint 16 ]
+        {}
 
 
 
-def Raw (state : ExtractState) (str : [uint 8]) =
-  EmitUtf16 state (map (x in str) (x as uint 16))
+def Raw (str : [uint 8]) =
+  EmitUtf16 (map (x in str) (x as uint 16))
 
-def EmitUtf16 (state : ExtractState) (text : [uint 16]) : ExtractState =
-  block
-    font = state.font
-    fontCache = state.fontCache
-    inText = state.inText
-    output = emitArray state.output text
+def ResetPage : {}
+def BeginText : {}
+def EndText : {}
+def CurrentFont : maybe Font
+def LoadFontByRef (encodings : StdEncodings) (r : Ref) : Font
+def SetFont (font : maybe Font) : {}
+def EmitUtf16 (text : [uint 16]) : {}

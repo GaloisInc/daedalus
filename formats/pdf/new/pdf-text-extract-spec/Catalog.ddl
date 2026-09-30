@@ -13,12 +13,12 @@ import Fonts
 def PdfCatalog
   (strict : bool)
   (enc : StdEncodings)
-  (pageIndex : maybe (uint 64))
+  (pageIndex : uint 64)
   (r : Ref) =
   block
     let ?strict = strict
     let d        = ResolveValRef r is dict
-    pageTree     = PdfPageTreeRoot pageIndex (LookupRef "Pages" d)
+    page         = PdfPageTreeRoot pageIndex (LookupRef "Pages" d)
     stdEncodings = enc
     -- other fields omitted
 
@@ -38,7 +38,7 @@ def PdfPageTreeRoot pageIndex (r : Ref) =
   PdfPageTree pageIndex nothing noResources r
 
 def PdfPageTree
-  (pageIndex : maybe (uint 64))
+  (pageIndex : uint 64)
   (p : maybe Ref)
   (parentResources : Resources)
   (r : Ref) =
@@ -61,21 +61,12 @@ def PdfPageTree
       "Pages" ->
         block
           let kids = LookupResolve "Kids" node is array
-          {| Node =
-               case pageIndex of
-                 nothing ->
-                   map (child in kids)
-                     (PdfPageTree nothing (just r) resources (child is ref))
-                 just page ->
-                   [ PdfPageTreeChild page (just r) resources kids 0 ]
-            |}
+          PdfPageTreeChild pageIndex (just r) resources kids 0
 
       "Page"  ->
         block
-          case pageIndex of
-            nothing   -> Accept
-            just page -> page == 0 is true
-          {| Leaf = PdfPage resources node |}
+          pageIndex == 0 is true
+          PdfPage resources node
 
       _       -> Fail "Unexpected `Type` in page tree"
 
@@ -94,7 +85,7 @@ def PdfPageTreeChild
         "Page"  -> 1
         _       -> Fail "Unexpected `Type` in page tree"
     if pageIndex < pageCount
-      then PdfPageTree (just pageIndex) parent resources child
+      then PdfPageTree pageIndex parent resources child
       else
         PdfPageTreeChild
           (pageIndex - pageCount) parent resources kids (kidIndex + 1)
@@ -133,4 +124,3 @@ def PdfPageContent (resources : Resources) (vr : Value) =
     let content = ContentStream vr
     data        = content.data
     UNPARSED    = content.UNPARSED
-

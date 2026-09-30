@@ -17,6 +17,8 @@ def Font (v : Value) =
                   nothing -> nothing
                   just v  -> just (UnicodeCMap v)
 
+def FontByRef (r : Ref) = Font {| ref = r |}
+
 def namedEncoding encName =
   case encName of
     "WinAnsiEncoding"  -> just stdEncodings.win

@@ -28,6 +28,7 @@ $(PARSER): $(SPEC_SOURCES)
 		--entry=Catalog.PdfPageCount \
 		--entry=Catalog.PdfCatalog \
 		--entry=CMap.CMap \
+		--entry=Fonts.FontByRef \
 		--entry=TextExtract.TextInCatalogPage \
 		--user-state=crate::TextExtractState \
 		--user-fun=crate::native \

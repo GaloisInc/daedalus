@@ -1,6 +1,8 @@
+mod layout_state;
 mod native;
 mod text_extract_parsers;
 
+use crate::layout_state::ExtractionState;
 use crate::text_extract_parsers::{CMap, Catalog, StandardEncodings, TextExtract};
 use daedalus_pdf_cos::{PdfCos, PdfError, Ref};
 use daedalus_rts_rust as ddl;
@@ -14,6 +16,7 @@ pub(crate) struct TextExtractState {
     pub(crate) pdf: PdfCos,
     pub(crate) cmap_cache: BTreeMap<Ref, CMap::cmap>,
     pub(crate) loading_cmaps: BTreeSet<Ref>,
+    pub(crate) extraction: ExtractionState,
 }
 
 /// An error encountered while extracting text from a PDF.
@@ -82,6 +85,7 @@ fn extract_text_bytes_from_page(
         pdf,
         cmap_cache: BTreeMap::new(),
         loading_cmaps: BTreeSet::new(),
+        extraction: ExtractionState::new(),
     });
 
     let glyph_input = ddl::new_input(
@@ -107,13 +111,6 @@ fn extract_text_bytes_from_page(
 
     let first_page = page_index.unwrap_or(0);
     let last_page = page_index.map_or(page_count, |page| page + 1);
-    let mut extract_state = TextExtract::ExtractState {
-        font: ddl::Maybe::Nothing,
-        fontCache: ddl::empty_map(),
-        inText: false,
-        output: ddl::new_builder(),
-    };
-
     for page_index in first_page..last_page {
         let page_number = page_index + 1;
         eprintln!("page {page_number} of {page_count}: parsing content...");
@@ -124,7 +121,7 @@ fn extract_text_bytes_from_page(
             empty_input.clone(),
             true,
             encodings.clone(),
-            ddl::Maybe::Just(ddl::U::from(page_index)),
+            ddl::U::from(page_index),
             root.clone(),
         ) {
             ddl::ParserResult::Ok(catalog, _) => catalog,
@@ -135,17 +132,16 @@ fn extract_text_bytes_from_page(
 
         eprintln!("page {page_number} of {page_count}: extracting text...");
         state.reset_parse_error();
-        extract_state = match TextExtract::TextInCatalogPage(
+        match TextExtract::TextInCatalogPage(
             &mut state,
             empty_input.clone(),
-            extract_state,
             catalog,
         ) {
-            ddl::ParserResult::Ok(next_state, _) => next_state,
+            ddl::ParserResult::Ok(_, _) => {}
             ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
                 return Err(ExtractError::Text(state.error.to_string()));
             }
-        };
+        }
         eprintln!(
             "page {page_number} of {page_count}: complete in {:.3?}",
             page_start.elapsed()
@@ -153,11 +149,12 @@ fn extract_text_bytes_from_page(
     }
 
     char::decode_utf16(
-        extract_state
+        state
+            .user_state
+            .extraction
             .output
-            .build()
             .iter()
-            .map(|unit| u16::from(*unit)),
+            .copied(),
     )
     .map(|character| character.map_err(|_| ExtractError::InvalidUtf16))
     .collect()
