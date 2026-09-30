@@ -35,7 +35,7 @@ apInst Instantiation {..} =
 
 instance PP Instantiation where
   pp Instantiation {..} =
-    text (show instNewName)
+    pp instNewName
     <+> hsep (map pp instNewParams)
     <+> parens (hsep (map pp instTys ++ map ppA instArgs))
     where

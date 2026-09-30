@@ -1,0 +1,32 @@
+module DaedalusMain
+ 
+--- Imports:
+ 
+--- Type defs:
+ 
+--- Rules:
+ 
+rec value
+  T083.RecursiveDispatch : Grammar {} =
+    Choose biased
+      { T083.RecursiveOperator_10
+      | Choose biased
+          { T083.RecursiveOperator_11
+          | END
+          }
+      }
+   
+  T083.RecursiveOperator_11 : Grammar {} =
+    do do Match {'b'}
+          pure {}
+       ($$ : {}) <- T083.RecursiveDispatch
+       pure $$
+   
+  T083.RecursiveOperator_10 : Grammar {} =
+    do do Match {'a'}
+          pure {}
+       ($$ : {}) <- T083.RecursiveDispatch
+       pure $$
+ 
+T083.Main : Grammar {} =
+  T083.RecursiveDispatch
