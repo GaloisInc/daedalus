@@ -167,7 +167,9 @@ def FindTextOnPage
                 block
                   inText is true
                   operandCount == 1 is true
-                  DecodeText (GetOperand (i - 1) is string)
+                  let text = GetOperand (i - 1) is string
+                  MoveToNextTextLine
+                  DecodeText text
 
             -- Set word and character spacing, move to the next line, and
             -- show a text string.
@@ -176,14 +178,36 @@ def FindTextOnPage
                 block
                   inText is true
                   operandCount == 3 is true
-                  DecodeText (GetOperand (i - 1) is string)
+                  let wordSpacing =
+                    GetOperand (i - 3) is number
+                  let characterSpacing =
+                    GetOperand (i - 2) is number
+                  let text = GetOperand (i - 1) is string
+                  SetWordSpacing wordSpacing
+                  SetCharacterSpacing characterSpacing
+                  MoveToNextTextLine
+                  DecodeText text
 
             -- Move the text position to the start of another line.
-            Td, TD ->
+            Td ->
               Operator inText i
                 block
                   inText is true
                   operandCount == 2 is true
+                  let tx = GetOperand (i - 2) is number
+                  let ty = GetOperand (i - 1) is number
+                  MoveTextPosition tx ty
+
+            -- Move the text position and set leading to the negative
+            -- vertical displacement.
+            TD ->
+              Operator inText i
+                block
+                  inText is true
+                  operandCount == 2 is true
+                  let tx = GetOperand (i - 2) is number
+                  let ty = GetOperand (i - 1) is number
+                  MoveTextPositionAndSetLeading tx ty
 
             -- Move to the start of the next text line.
             T_star ->
@@ -191,6 +215,7 @@ def FindTextOnPage
                 block
                   inText is true
                   operandCount == 0 is true
+                  MoveToNextTextLine
 
             -- Show strings with interspersed positioning adjustments.
             TJ ->
@@ -283,6 +308,9 @@ def SetTextRise (value : Number) : {}
 def SetTextMatrix
   (a : Number) (b : Number) (c : Number)
   (d : Number) (e : Number) (f : Number) : {}
+def MoveTextPosition (tx : Number) (ty : Number) : {}
+def MoveTextPositionAndSetLeading (tx : Number) (ty : Number) : {}
+def MoveToNextTextLine : {}
 def AdjustTextPosition (value : Number) : {}
 def NoteMalformedOperator : {}
 def CurrentFont : maybe Font

@@ -239,6 +239,49 @@ pub fn SetTextMatrix(
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
+/// Translate the text-line matrix and copy it to the text matrix.
+pub fn MoveTextPosition(
+    state: &mut ddl::ParserStateWith<TextExtractState>,
+    input: ddl::Input,
+    tx: Number,
+    ty: Number,
+) -> ddl::ParserResult<ddl::Unit> {
+    let (Some(tx), Some(ty)) = (number_to_f64(&tx), number_to_f64(&ty)) else {
+        note_malformed(state);
+        return ddl::ParserResult::Ok(ddl::Unit, input);
+    };
+    move_text_position(&mut state.user_state.extraction, tx, ty);
+    ddl::ParserResult::Ok(ddl::Unit, input)
+}
+
+/// Translate the text matrices and set text leading to the negative ty value.
+pub fn MoveTextPositionAndSetLeading(
+    state: &mut ddl::ParserStateWith<TextExtractState>,
+    input: ddl::Input,
+    tx: Number,
+    ty: Number,
+) -> ddl::ParserResult<ddl::Unit> {
+    let (Some(tx), Some(ty)) = (number_to_f64(&tx), number_to_f64(&ty)) else {
+        note_malformed(state);
+        return ddl::ParserResult::Ok(ddl::Unit, input);
+    };
+    let extraction = &mut state.user_state.extraction;
+    extraction.graphics.leading = -ty;
+    move_text_position(extraction, tx, ty);
+    ddl::ParserResult::Ok(ddl::Unit, input)
+}
+
+/// Move to the start of the next text line using the current leading.
+pub fn MoveToNextTextLine(
+    state: &mut ddl::ParserStateWith<TextExtractState>,
+    input: ddl::Input,
+) -> ddl::ParserResult<ddl::Unit> {
+    let extraction = &mut state.user_state.extraction;
+    let leading = extraction.graphics.leading;
+    move_text_position(extraction, 0.0, -leading);
+    ddl::ParserResult::Ok(ddl::Unit, input)
+}
+
 /// Apply a numeric positioning adjustment from a TJ array.
 pub fn AdjustTextPosition(
     state: &mut ddl::ParserStateWith<TextExtractState>,
@@ -361,6 +404,20 @@ fn matrix_from_numbers(
         e: number_to_f64(e)?,
         f: number_to_f64(f)?,
     })
+}
+
+fn move_text_position(
+    extraction: &mut crate::layout_state::ExtractionState,
+    tx: f64,
+    ty: f64,
+) {
+    let translation = Matrix {
+        e: tx,
+        f: ty,
+        ..Matrix::IDENTITY
+    };
+    extraction.text_line_matrix = translation.multiply(extraction.text_line_matrix);
+    extraction.text_matrix = extraction.text_line_matrix;
 }
 
 fn set_graphics_number(
