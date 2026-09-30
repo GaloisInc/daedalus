@@ -52,9 +52,9 @@ def EncodingDifferences base (ds : [Value]) : [ uint 8 -> [uint 16] ]=
     let s = for (s = { enc = start, code = 0 : uint 16 }; x in ds)
              case ResolveVal x of
                number n ->
-                 { enc  = s.enc
-                 , code = (NumberAsNat n as? uint 8) as uint 16
-                 }
+                 block
+                   enc  = s.enc
+                   code = (NumberAsNat n as? uint 8) as uint 16
                name x ->
                  block
                    let code = s.code as? uint 8

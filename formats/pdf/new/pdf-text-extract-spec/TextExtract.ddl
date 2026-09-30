@@ -10,6 +10,7 @@ def ExtractState =
   struct
     font      : maybe Font
     fontCache : [ Ref -> Font ]
+    inText    : bool
     output    : builder (uint 16)
 
 -- ENTRY
@@ -19,7 +20,11 @@ def TextInCatalogPage
   block
     let ?stdEncodings = c.stdEncodings
     TextInPageTree
-      { font = nothing, fontCache = state.fontCache, output = state.output }
+      block
+        font      = nothing
+        fontCache = state.fontCache
+        inText    = false
+        output    = state.output
       c.pageTree
 
 def TextInPageTree (state : ExtractState) (t : PdfPageTree) =
@@ -45,28 +50,42 @@ def GetOperand i = (Index ?instrs i : ContentStreamEntry) is value
 def SelectFont (state : ExtractState) mbValue : ExtractState =
   case mbValue of
     nothing ->
-      { font = nothing, fontCache = state.fontCache, output = state.output }
+      block
+        font      = nothing
+        fontCache = state.fontCache
+        inText    = state.inText
+        output    = state.output
     just value ->
       case value of
         ref r ->
           case lookup r state.fontCache of
             just font ->
-              { font = just font
-              , fontCache = state.fontCache
-              , output = state.output
-              }
+              block
+                font = just font
+                fontCache = state.fontCache
+                inText = state.inText
+                output = state.output
             nothing ->
               block
                 let f = Font value
                 font = just f
                 fontCache = insert r f state.fontCache
+                inText = state.inText
                 output = state.output
                 
         _ ->
-          { font = just (Font value)
-          , fontCache = state.fontCache
-          , output = state.output
-          }
+          block
+            font = just (Font value)
+            fontCache = state.fontCache
+            inText = state.inText
+            output = state.output
+
+def setInText (state : ExtractState) inText : ExtractState =
+  block
+    font = state.font
+    fontCache = state.fontCache
+    inText = inText
+    output = state.output
 
 def FindTextOnPage (state : ExtractState) i =
   case Optional (Index ?instrs i) of
@@ -77,31 +96,49 @@ def FindTextOnPage (state : ExtractState) i =
         operator op ->
           case op of
 
+            BT ->
+              FindTextOnPage (setInText state true) (i+1)
+
+            ET ->
+              FindTextOnPage (setInText state false) (i+1)
+
             Tj ->
-              block
-                let next = DecodeText state (GetOperand (i - 1) is string)
-                FindTextOnPage next (i+1)
+              if state.inText
+                then
+                  block
+                    let next = DecodeText state (GetOperand (i - 1) is string)
+                    FindTextOnPage next (i+1)
+                else FindTextOnPage state (i+1)
 
 
             quote, dquote ->
-              block
-                let next = EmitUtf16 state [ '\n' as uint 16 ]
-                let next = DecodeText next (GetOperand (i - 1) is string)
-                FindTextOnPage next (i+1)
+              if state.inText
+                then
+                  block
+                    let next = EmitUtf16 state [ '\n' as uint 16 ]
+                    let next = DecodeText next (GetOperand (i - 1) is string)
+                    FindTextOnPage next (i+1)
+                else FindTextOnPage state (i+1)
 
             Td, TD, T_star ->
-              block
-                let next = EmitUtf16 state [ '\n' as uint 16 ]
-                FindTextOnPage next (i+1)
+              if state.inText
+                then
+                  block
+                    let next = EmitUtf16 state [ '\n' as uint 16 ]
+                    FindTextOnPage next (i+1)
+                else FindTextOnPage state (i+1)
 
             TJ ->
-              block
-                let next =
-                  for (next = state; x in (GetOperand (i - 1) is array))
-                    case x of
-                      string s -> DecodeText next s
-                      _        -> next
-                FindTextOnPage next (i+1)
+              if state.inText
+                then
+                  block
+                    let next =
+                      for (next = state; x in (GetOperand (i - 1) is array))
+                        case x of
+                          string s -> DecodeText next s
+                          _        -> next
+                    FindTextOnPage next (i+1)
+                else FindTextOnPage state (i+1)
 
             Tf ->
               block
@@ -120,23 +157,24 @@ def DecodeText (state : ExtractState) str =
     nothing -> Raw state str
 
     just f ->
-      if f.subType == "Type1" || f.subType == "Type3"
-        then DecodeTextWithEncoding state f str
-        else
-          case (f : Font).toUnicode of
-            nothing -> Raw state str
-            just cmap ->
-              case cmap of
-                cmap c ->
-                  block
-                    let s = GetStream
-                    SetStream (arrayStream str)
-                    let units =
-                      many (output = builder)
-                        ParseUnicode output c
-                    let next = EmitUtf16 state (build units)
-                    SetStream s
-                    next
+      case (f : Font).toUnicode of
+        nothing ->
+          if f.subType == "Type1" || f.subType == "Type3"
+            then DecodeTextWithEncoding state f str
+            else Raw state str
+
+        just cmap ->
+          case cmap of
+            cmap c ->
+              block
+                let s = GetStream
+                SetStream (arrayStream str)
+                let units =
+                  many (output = builder)
+                    ParseUnicode output c
+                let next = EmitUtf16 state (build units)
+                SetStream s
+                next
 
 
 def DecodeTextWithEncoding (state : ExtractState) (f : Font) str =
@@ -155,7 +193,8 @@ def Raw (state : ExtractState) (str : [uint 8]) =
   EmitUtf16 state (map (x in str) (x as uint 16))
 
 def EmitUtf16 (state : ExtractState) (text : [uint 16]) : ExtractState =
-  { font = state.font
-  , fontCache = state.fontCache
-  , output = emitArray state.output text
-  }
+  block
+    font = state.font
+    fontCache = state.fontCache
+    inText = state.inText
+    output = emitArray state.output text

@@ -110,6 +110,7 @@ fn extract_text_bytes_from_page(
     let mut extract_state = TextExtract::ExtractState {
         font: ddl::Maybe::Nothing,
         fontCache: ddl::empty_map(),
+        inText: false,
         output: ddl::new_builder(),
     };
 
