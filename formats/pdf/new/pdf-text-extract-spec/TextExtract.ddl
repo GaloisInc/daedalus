@@ -59,31 +59,25 @@ def FindTextOnPage
 
             -- Save the current graphics state.
             q ->
-              block
-                Operator
-                  block
-                    operandCount == 0 is true
-                    SaveGraphicsState
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 0 is true
+                  SaveGraphicsState
 
             -- Restore the most recently saved graphics state.
             Q ->
-              block
-                Operator
-                  block
-                    operandCount == 0 is true
-                    RestoreGraphicsState
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 0 is true
+                  RestoreGraphicsState
 
             -- Concatenate a matrix with the current transformation matrix.
             cm ->
-              block
-                Operator
-                  block
-                    operandCount == 6 is true
-                    let m = GetMatrixOperands i
-                    ConcatMatrix m.a m.b m.c m.d m.e m.f
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 6 is true
+                  let m = GetMatrixOperands i
+                  ConcatMatrix m.a m.b m.c m.d m.e m.f
 
             -- Begin a text object and initialize its text matrices.
             BT ->
@@ -98,168 +92,140 @@ def FindTextOnPage
 
             -- End the current text object.
             ET ->
-              block
-                Operator
-                  block
-                    inText is true
-                    operandCount == 0 is true
-                FindTextOnPage false 0 (i+1)
+              Operator false i
+                block
+                  inText is true
+                  operandCount == 0 is true
 
             -- Set the spacing added after each character.
             Tc ->
-              block
-                Operator
-                  block
-                    operandCount == 1 is true
-                    SetCharacterSpacing (GetOperand (i - 1) is number)
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 1 is true
+                  SetCharacterSpacing (GetOperand (i - 1) is number)
 
             -- Set the additional spacing applied to word spaces.
             Tw ->
-              block
-                Operator
-                  block
-                    operandCount == 1 is true
-                    SetWordSpacing (GetOperand (i - 1) is number)
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 1 is true
+                  SetWordSpacing (GetOperand (i - 1) is number)
 
             -- Set horizontal text scaling as a percentage.
             Tz ->
-              block
-                Operator
-                  block
-                    operandCount == 1 is true
-                    SetHorizontalScaling
-                      (GetOperand (i - 1) is number)
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 1 is true
+                  SetHorizontalScaling
+                    (GetOperand (i - 1) is number)
 
             -- Set the vertical distance used to move to the next text line.
             TL ->
-              block
-                Operator
-                  block
-                    operandCount == 1 is true
-                    SetLeading (GetOperand (i - 1) is number)
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 1 is true
+                  SetLeading (GetOperand (i - 1) is number)
 
             -- Set the text rendering mode.
             Tr ->
-              block
-                Operator
-                  block
-                    operandCount == 1 is true
-                    let mode =
-                      NumberAsNat
-                        (GetOperand (i - 1) is number) as? uint 8
-                    mode <= 7 is true
-                    SetRenderingMode mode
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 1 is true
+                  let mode =
+                    NumberAsNat
+                      (GetOperand (i - 1) is number) as? uint 8
+                  mode <= 7 is true
+                  SetRenderingMode mode
 
             -- Set the vertical displacement of text from the baseline.
             Ts ->
-              block
-                Operator
-                  block
-                    operandCount == 1 is true
-                    SetTextRise (GetOperand (i - 1) is number)
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 1 is true
+                  SetTextRise (GetOperand (i - 1) is number)
 
             -- Replace the text matrix and text-line matrix.
             Tm ->
-              block
-                Operator
-                  block
-                    inText is true
-                    operandCount == 6 is true
-                    let m = GetMatrixOperands i
-                    SetTextMatrix m.a m.b m.c m.d m.e m.f
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  inText is true
+                  operandCount == 6 is true
+                  let m = GetMatrixOperands i
+                  SetTextMatrix m.a m.b m.c m.d m.e m.f
 
             -- Show a text string at the current text position.
             Tj ->
-              block
-                Operator
-                  block
-                    inText is true
-                    operandCount == 1 is true
-                    DecodeText (GetOperand (i - 1) is string)
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  inText is true
+                  operandCount == 1 is true
+                  DecodeText (GetOperand (i - 1) is string)
 
             -- Move to the next line and show a text string.
             quote ->
-              block
-                Operator
-                  block
-                    inText is true
-                    operandCount == 1 is true
-                    DecodeText (GetOperand (i - 1) is string)
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  inText is true
+                  operandCount == 1 is true
+                  DecodeText (GetOperand (i - 1) is string)
 
             -- Set word and character spacing, move to the next line, and
             -- show a text string.
             dquote ->
-              block
-                Operator
-                  block
-                    inText is true
-                    operandCount == 3 is true
-                    DecodeText (GetOperand (i - 1) is string)
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  inText is true
+                  operandCount == 3 is true
+                  DecodeText (GetOperand (i - 1) is string)
 
             -- Move the text position to the start of another line.
             Td, TD ->
-              block
-                Operator
-                  block
-                    inText is true
-                    operandCount == 2 is true
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  inText is true
+                  operandCount == 2 is true
 
             -- Move to the start of the next text line.
             T_star ->
-              block
-                Operator
-                  block
-                    inText is true
-                    operandCount == 0 is true
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  inText is true
+                  operandCount == 0 is true
 
             -- Show strings with interspersed positioning adjustments.
             TJ ->
-              block
-                Operator
-                  block
-                    inText is true
-                    operandCount == 1 is true
-                    let xs = GetOperand (i - 1) is array
-                    for (done = {}; x in xs)
-                      case x of
-                        string text -> DecodeText text
-                        number adjustment -> AdjustTextPosition adjustment
-                        _ -> NoteMalformedOperator
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  inText is true
+                  operandCount == 1 is true
+                  let xs = GetOperand (i - 1) is array
+                  for (done = {}; x in xs)
+                    case x of
+                      string text -> DecodeText text
+                      number adjustment -> AdjustTextPosition adjustment
+                      _ -> NoteMalformedOperator
 
             -- Select the text font and font size.
             Tf ->
-              block
-                Operator
-                  block
-                    operandCount == 2 is true
-                    let fontName = GetOperand (i - 2) is name
-                    let fontSize = GetOperand (i - 1) is number
-                    let fontValue = Lookup fontName ?resources.fonts
-                    SelectFont fontSize (just fontValue)
-                FindTextOnPage inText 0 (i+1)
+              Operator inText i
+                block
+                  operandCount == 2 is true
+                  let fontName = GetOperand (i - 2) is name
+                  let fontSize = GetOperand (i - 1) is number
+                  let fontValue = Lookup fontName ?resources.fonts
+                  SelectFont fontSize (just fontValue)
 
             _  -> FindTextOnPage inText 0 (i+1)
 
         value _ ->
           FindTextOnPage inText (operandCount + 1) (i+1)
 
-def Operator P =
-  First
-    P
-    NoteMalformedOperator
+def Operator inText i P =
+  block
+    First
+      P
+      NoteMalformedOperator
+    FindTextOnPage inText 0 (i+1)
 
 def DecodeText str =
 
