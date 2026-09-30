@@ -170,7 +170,7 @@ def CodespaceRangeEntry (start : SourceCode) : cmapEntry =
     {| Codespace = end |}
 
 -- Destination strings are retained as arrays of raw UTF-16BE code units.
--- Unicode scalar validation is deferred to the Rust emitter.
+-- Unicode scalar validation is deferred until Rust builds the final string.
 def UTF16BE = Many (..256) (HexByte # HexByte)
 
 

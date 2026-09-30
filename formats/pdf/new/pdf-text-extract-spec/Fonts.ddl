@@ -50,19 +50,23 @@ def EncodingDifferences base (ds : [Value]) : [ uint 8 -> [uint 16] ]=
     let start = case base of
                   nothing -> stdEncodings.std
                   just e  -> e
-    let s = for (s = { enc = start, code = 0 }; x in ds)
+    let s = for (s = { enc = start, code = 0 : uint 16 }; x in ds)
              case ResolveVal x of
-               number n -> { enc = s.enc, code = NumberAsNat n as? uint 8 }
-               name x ->
-                 { enc  = case lookup x stdEncodings.uni of
-                            just u  -> insert s.code u s.enc
-                            nothing ->
-                              block
-                                -- Trace (concat ["Missing: ", x])
-                                insert s.code
-                                  (map (c in concat ["[",x,"]"])
-                                       (c as uint 16)) s.enc
-                 , code = s.code + 1
+               number n ->
+                 { enc  = s.enc
+                 , code = (NumberAsNat n as? uint 8) as uint 16
                  }
+               name x ->
+                 block
+                   let code = s.code as? uint 8
+                   let enc = case lookup x stdEncodings.uni of
+                               just u  -> insert code u s.enc
+                               nothing ->
+                                 block
+                                   -- Trace (concat ["Missing: ", x])
+                                   insert code
+                                     (map (c in concat ["[",x,"]"])
+                                          (c as uint 16)) s.enc
+                   { enc = enc, code = s.code + 1 }
 
     s.enc
