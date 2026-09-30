@@ -21,7 +21,6 @@ def namedEncoding encName =
   case encName of
     "WinAnsiEncoding"  -> just stdEncodings.win
     "MacRomanEncoding" -> just stdEncodings.mac
-    "PDFDocEncoding"   -> just stdEncodings.pdf
     "StandardEncoding" -> just stdEncodings.std
     _                  -> nothing
 
