@@ -21,6 +21,17 @@ impl Matrix {
         e: 0.0,
         f: 0.0,
     };
+
+    pub(crate) fn multiply(self, right: Self) -> Self {
+        Self {
+            a: self.a * right.a + self.b * right.c,
+            b: self.a * right.b + self.b * right.d,
+            c: self.c * right.a + self.d * right.c,
+            d: self.c * right.b + self.d * right.d,
+            e: self.e * right.a + self.f * right.c + right.e,
+            f: self.e * right.b + self.f * right.d + right.f,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -55,11 +66,11 @@ impl Default for GraphicsState {
 pub(crate) struct ExtractionState {
     pub(crate) graphics: GraphicsState,
     pub(crate) graphics_stack: Vec<GraphicsState>,
-    pub(crate) in_text: bool,
     pub(crate) text_matrix: Matrix,
     pub(crate) text_line_matrix: Matrix,
     pub(crate) font_cache: BTreeMap<Ref, Fonts::Font>,
     pub(crate) output: Vec<u16>,
+    pub(crate) malformed_operators: u64,
 }
 
 impl ExtractionState {
@@ -67,18 +78,17 @@ impl ExtractionState {
         Self {
             graphics: GraphicsState::default(),
             graphics_stack: Vec::new(),
-            in_text: false,
             text_matrix: Matrix::IDENTITY,
             text_line_matrix: Matrix::IDENTITY,
             font_cache: BTreeMap::new(),
             output: Vec::new(),
+            malformed_operators: 0,
         }
     }
 
     pub(crate) fn reset_for_page(&mut self) {
         self.graphics = GraphicsState::default();
         self.graphics_stack.clear();
-        self.in_text = false;
         self.text_matrix = Matrix::IDENTITY;
         self.text_line_matrix = Matrix::IDENTITY;
     }

@@ -148,6 +148,14 @@ fn extract_text_bytes_from_page(
         );
     }
 
+    let malformed_operators = state.user_state.extraction.malformed_operators;
+    if malformed_operators != 0 {
+        eprintln!(
+            "warning: ignored {malformed_operators} malformed text operator(s); \
+             extracted text may be incomplete or inaccurate"
+        );
+    }
+
     char::decode_utf16(
         state
             .user_state
