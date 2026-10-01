@@ -2,8 +2,8 @@
 
 #![allow(non_snake_case)]
 
-use crate::font_metrics::estimate_glyph_dimensions;
 use crate::TextExtractState;
+use crate::font_metrics::estimate_glyph_dimensions;
 use crate::layout_state::{BoundingBox, ExtractionState, Matrix, Point};
 use crate::text_extract_parsers::{
     CMap::{self, cmap},
@@ -62,10 +62,7 @@ pub fn LoadCMapByRef(
 
     match result {
         ddl::ParserResult::Ok(cmap, _) => {
-            state
-                .user_state
-                .cmap_cache
-                .insert(reference, cmap.clone());
+            state.user_state.cmap_cache.insert(reference, cmap.clone());
             ddl::ParserResult::Ok(cmap, input)
         }
         ddl::ParserResult::Failure => ddl::ParserResult::Failure,
@@ -88,11 +85,7 @@ pub fn SaveGraphicsState(
     input: ddl::Input,
 ) -> ddl::ParserResult<ddl::Unit> {
     let graphics = state.user_state.extraction.graphics.clone();
-    state
-        .user_state
-        .extraction
-        .graphics_stack
-        .push(graphics);
+    state.user_state.extraction.graphics_stack.push(graphics);
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -342,12 +335,7 @@ pub fn LoadFontByRef(
         return ddl::ParserResult::Ok(font.clone(), input);
     }
 
-    match Fonts::FontByRef(
-        state,
-        input.clone(),
-        encodings,
-        reference.clone(),
-    ) {
+    match Fonts::FontByRef(state, input.clone(), encodings, reference.clone()) {
         ddl::ParserResult::Ok(font, _) => {
             state
                 .user_state
@@ -409,11 +397,7 @@ pub fn EmitUtf16(
 ) -> ddl::ParserResult<ddl::Unit> {
     let text: Vec<u16> = text.iter().map(|unit| u16::from(*unit)).collect();
     let extraction = &mut state.user_state.extraction;
-    let bounds = position_glyph(
-        extraction,
-        u8::from(code_width),
-        u32::from(character_code),
-    );
+    let bounds = position_glyph(extraction, u8::from(code_width), u32::from(character_code));
     extraction.append_to_chunk(&text, bounds);
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
@@ -441,11 +425,7 @@ fn matrix_from_numbers(
     })
 }
 
-fn move_text_position(
-    extraction: &mut crate::layout_state::ExtractionState,
-    tx: f64,
-    ty: f64,
-) {
+fn move_text_position(extraction: &mut crate::layout_state::ExtractionState, tx: f64, ty: f64) {
     let translation = Matrix {
         e: tx,
         f: ty,
@@ -479,7 +459,7 @@ fn position_glyph(
         extraction.text_matrix = None;
         return None;
     };
-    let Some(dimensions) = estimate_glyph_dimensions(font, character_code) else {
+    let Some(dimensions) = estimate_glyph_dimensions(font, character_code.into()) else {
         extraction.text_matrix = None;
         return None;
     };

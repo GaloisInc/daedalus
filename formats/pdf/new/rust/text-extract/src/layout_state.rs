@@ -130,15 +130,15 @@ pub(crate) struct ChunkBuilder {
 
 #[derive(Clone)]
 pub(crate) struct GraphicsState {
-    pub(crate) ctm: Option<Matrix>,         // Current transformation matrix.
-    pub(crate) font: Option<Fonts::Font>,   // Currently selected text font.
-    pub(crate) font_size: Option<f64>,      // Font size in text-space units.
-    pub(crate) character_spacing: f64,      // Extra character spacing in text-space units.
-    pub(crate) word_spacing: f64,           // Extra word spacing in text-space units.
-    pub(crate) horizontal_scaling: f64,     // Percentage; 100 means normal width.
-    pub(crate) leading: f64,                // Line spacing in text-space units.
-    pub(crate) rendering_mode: u8,          // Text painting and clipping mode.
-    pub(crate) text_rise: f64,              // Baseline displacement in text-space units.
+    pub(crate) ctm: Option<Matrix>,       // Current transformation matrix.
+    pub(crate) font: Option<Fonts::Font>, // Currently selected text font.
+    pub(crate) font_size: Option<f64>,    // Font size in text-space units.
+    pub(crate) character_spacing: f64,    // Extra character spacing in text-space units.
+    pub(crate) word_spacing: f64,         // Extra word spacing in text-space units.
+    pub(crate) horizontal_scaling: f64,   // Percentage; 100 means normal width.
+    pub(crate) leading: f64,              // Line spacing in text-space units.
+    pub(crate) rendering_mode: u8,        // Text painting and clipping mode.
+    pub(crate) text_rise: f64,            // Baseline displacement in text-space units.
 }
 
 impl Default for GraphicsState {

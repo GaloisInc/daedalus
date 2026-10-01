@@ -54,56 +54,61 @@ def GetCIDEncoding (dict : Dict) =
       encodingName == "Identity-H" is true
       {| identityH = {} |}
 
-def GetCIDWidths (dict : Dict) =
+def cidWidth =
+  union
+    Consecutive: (uint 32, [Number])
+    Range:       (uint 32, Number)
+
+def GetCIDWidths (dict : Dict) : [uint 32 -> cidWidth] =
   case lookup "W" dict of
-    nothing -> []
+    nothing -> empty
     just v  ->
       block
         let values = ResolveVal v is array
         let result =
-          many (state = { index = 0, widths = builder })
+          many
+            (state =
+              { index = 0
+              , widths = empty : [uint 32 -> cidWidth]
+              })
             block
               state.index < length values is true
               ParseCIDWidth values state
         result.index == length values is true
-        build result.widths
+        result.widths
 
 def ParseCIDWidth values state =
   block
     let first =
-      (NumberAsNat
-        (ResolveVal (Index values state.index) is number) as? uint 32)
-        as uint 64
+      NumberAsNat
+        (ResolveVal (Index values state.index) is number) as? uint 32
     case ResolveVal (Index values (state.index + 1)) of
       array ws ->
         block
-          let result =
-            for (result = { cid = first, widths = state.widths }; w in ws)
-              block
-                cid = result.cid + 1
-                widths =
-                  emit result.widths
-                    { cid = result.cid as? uint 32
-                    , width = ResolveVal w is number
-                    }
+          length ws > 0 is true
+          let widths = map (w in ws) (ResolveVal w is number)
+          let last =
+            ((first as uint 64) + length widths - 1) as? uint 32
           index = state.index + 2
-          widths = result.widths
+          -- The specification says that a CID should not be specified more
+          -- than once. We do not specially handle malformed overlapping
+          -- entries.
+          widths =
+            insert first
+              ({| Consecutive = (last, widths) |} : cidWidth)
+              state.widths
 
       number lastNumber ->
         block
-          let last  = NumberAsNat lastNumber as? uint 64
+          let last  = NumberAsNat lastNumber as? uint 32
+          first <= last is true
           let width = ResolveVal (Index values (state.index + 2)) is number
-          let result =
-            many
-              (result = { cid = first, widths = state.widths })
-              block
-                result.cid <= last is true
-                cid = result.cid + 1
-                widths =
-                  emit result.widths
-                    { cid = result.cid as? uint 32, width = width }
           index  = state.index + 3
-          widths = result.widths
+          -- See the overlap note above.
+          widths =
+            insert first
+              ({| Range = (last, width) |} : cidWidth)
+              state.widths
 
       _ -> Fail "Invalid CID font W entry"
 

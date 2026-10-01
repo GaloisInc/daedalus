@@ -111,13 +111,12 @@ fn extract_chunks_bytes_from_page(
 
     let empty_input = ddl::new_input(ddl::new_byte_array(b""), ddl::new_byte_array(b""));
     state.reset_parse_error();
-    let page_count =
-        match Catalog::PdfPageCount(&mut state, empty_input.clone(), root.clone()) {
-            ddl::ParserResult::Ok(page_count, _) => u64::from(page_count),
-            ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
-                return Err(ExtractError::Catalog(state.error.to_string()));
-            }
-        };
+    let page_count = match Catalog::PdfPageCount(&mut state, empty_input.clone(), root.clone()) {
+        ddl::ParserResult::Ok(page_count, _) => u64::from(page_count),
+        ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
+            return Err(ExtractError::Catalog(state.error.to_string()));
+        }
+    };
 
     let first_page = page_index.unwrap_or(0);
     let last_page = page_index.map_or(page_count, |page| page + 1);
@@ -141,16 +140,9 @@ fn extract_chunks_bytes_from_page(
         };
 
         eprintln!("page {page_number} of {page_count}: extracting text...");
-        state
-            .user_state
-            .extraction
-            .set_current_page(page_number);
+        state.user_state.extraction.set_current_page(page_number);
         state.reset_parse_error();
-        match TextExtract::TextInCatalogPage(
-            &mut state,
-            empty_input.clone(),
-            catalog,
-        ) {
+        match TextExtract::TextInCatalogPage(&mut state, empty_input.clone(), catalog) {
             ddl::ParserResult::Ok(_, _) => {}
             ddl::ParserResult::Failure | ddl::ParserResult::Exception => {
                 return Err(ExtractError::Text(state.error.to_string()));
@@ -176,8 +168,7 @@ fn extract_chunks_bytes_from_page(
         .chunks
         .into_iter()
         .map(|chunk| {
-            let text =
-                String::from_utf16(&chunk.text).map_err(|_| ExtractError::InvalidUtf16)?;
+            let text = String::from_utf16(&chunk.text).map_err(|_| ExtractError::InvalidUtf16)?;
             Ok(TextChunk {
                 page_number: chunk.page_number,
                 text,

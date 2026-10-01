@@ -1,6 +1,7 @@
 use crate::text_extract_parsers::Fonts;
 use daedalus_pdf_cos::pdfcos_parsers::PdfValue::Number;
 use daedalus_rts_rust as ddl;
+use ddl::Type;
 
 const SIMPLE_FONT_SCALE: f64 = 0.001;
 
@@ -16,25 +17,37 @@ pub(crate) struct VerticalBounds {
     pub(crate) top: f64,
 }
 
-/// Estimate simple-font glyph dimensions in unscaled text space.
+/// Estimate glyph dimensions in unscaled text space.
 ///
-/// The advance comes from `Widths`, falling back to `MissingWidth`. Vertical
-/// bounds prefer `Descent` and `Ascent`, then fall back to the y coordinates
-/// in `FontBBox`.
+/// Simple-font advances come from `Widths`, falling back to `MissingWidth`.
+/// CIDFont advances come from `W`, falling back to `DW`.
+/// Vertical bounds prefer `Descent` and `Ascent`, then fall back to `FontBBox`.
 pub(crate) fn estimate_glyph_dimensions(
     font: &Fonts::Font,
-    character_code: u8,
+    character_code: u32,
 ) -> Option<GlyphDimensions> {
-    let advance_width = explicit_width(font, character_code)
+    match &font.cidFont {
+        ddl::Maybe::Just(cid_font) => estimate_cid_glyph_dimensions(cid_font, character_code),
+        ddl::Maybe::Nothing => estimate_simple_glyph_dimensions(font, character_code),
+    }
+}
+
+fn estimate_simple_glyph_dimensions(
+    font: &Fonts::Font,
+    character_code: u32,
+) -> Option<GlyphDimensions> {
+    let character_code = u8::try_from(character_code).ok()?;
+    let advance_width = simple_explicit_width(font, character_code)
         .or_else(|| maybe_number(&font.missingWidth))
         .filter(|width| *width >= 0.0)?
         * SIMPLE_FONT_SCALE;
 
-    let vertical_bounds = descriptor_vertical_bounds(font)
-        .or_else(|| font_bbox_vertical_bounds(font))
-        .map(|(bottom, top)| VerticalBounds {
-            bottom: bottom.min(top) * SIMPLE_FONT_SCALE,
-            top: bottom.max(top) * SIMPLE_FONT_SCALE,
+    let vertical_bounds =
+        vertical_bounds(&font.descent, &font.ascent, &font.fontBBox).map(|(bottom, top)| {
+            VerticalBounds {
+                bottom: bottom.min(top) * SIMPLE_FONT_SCALE,
+                top: bottom.max(top) * SIMPLE_FONT_SCALE,
+            }
         });
 
     Some(GlyphDimensions {
@@ -43,7 +56,48 @@ pub(crate) fn estimate_glyph_dimensions(
     })
 }
 
-fn explicit_width(font: &Fonts::Font, character_code: u8) -> Option<f64> {
+fn estimate_cid_glyph_dimensions(font: &Fonts::GetCIDFont, cid: u32) -> Option<GlyphDimensions> {
+    let advance_width = cid_explicit_width(font, cid)
+        .or_else(|| number_to_f64(&font.defaultWidth))
+        .filter(|width| *width >= 0.0)?
+        * SIMPLE_FONT_SCALE;
+
+    let vertical_bounds =
+        vertical_bounds(&font.descent, &font.ascent, &font.fontBBox).map(|(bottom, top)| {
+            VerticalBounds {
+                bottom: bottom.min(top) * SIMPLE_FONT_SCALE,
+                top: bottom.max(top) * SIMPLE_FONT_SCALE,
+            }
+        });
+
+    Some(GlyphDimensions {
+        advance_width,
+        vertical_bounds,
+    })
+}
+
+fn cid_explicit_width(font: &Fonts::GetCIDFont, cid: u32) -> Option<f64> {
+    let cid_key = ddl::U::from(cid);
+    let ddl::Maybe::Just((first, entry)) = font.widths.bor().lookup_le(cid_key.bor()) else {
+        return None;
+    };
+    let first = u32::from(first);
+
+    match entry {
+        Fonts::cidWidth::Consecutive((last, widths)) => {
+            if cid > u32::from(last) {
+                return None;
+            }
+            let index = cid.checked_sub(first)? as usize;
+            number_to_f64(widths.get(index)?)
+        }
+        Fonts::cidWidth::Range((last, width)) => (cid <= u32::from(last))
+            .then(|| number_to_f64(&width))
+            .flatten(),
+    }
+}
+
+fn simple_explicit_width(font: &Fonts::Font, character_code: u8) -> Option<f64> {
     let ddl::Maybe::Just(first_character) = &font.firstChar else {
         return None;
     };
@@ -55,18 +109,20 @@ fn explicit_width(font: &Fonts::Font, character_code: u8) -> Option<f64> {
     number_to_f64(widths.get(index)?)
 }
 
-fn descriptor_vertical_bounds(font: &Fonts::Font) -> Option<(f64, f64)> {
-    Some((
-        maybe_number(&font.descent)?,
-        maybe_number(&font.ascent)?,
-    ))
-}
-
-fn font_bbox_vertical_bounds(font: &Fonts::Font) -> Option<(f64, f64)> {
-    let ddl::Maybe::Just(bbox) = &font.fontBBox else {
-        return None;
-    };
-    Some((number_to_f64(bbox.get(1)?)?, number_to_f64(bbox.get(3)?)?))
+fn vertical_bounds(
+    descent: &ddl::Maybe<Number>,
+    ascent: &ddl::Maybe<Number>,
+    font_bbox: &ddl::Maybe<ddl::Array<Number>>,
+) -> Option<(f64, f64)> {
+    match (maybe_number(descent), maybe_number(ascent)) {
+        (Some(descent), Some(ascent)) => Some((descent, ascent)),
+        _ => {
+            let ddl::Maybe::Just(bbox) = font_bbox else {
+                return None;
+            };
+            Some((number_to_f64(bbox.get(1)?)?, number_to_f64(bbox.get(3)?)?))
+        }
+    }
 }
 
 fn maybe_number(number: &ddl::Maybe<Number>) -> Option<f64> {
