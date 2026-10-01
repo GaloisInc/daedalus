@@ -12,7 +12,8 @@ def Font (v : Value) =
   block
     let dict  = ResolveVal v is dict
     let descriptor = GetFontDescriptor dict
-    subType   = LookupName "Subtype" dict
+    let subType = LookupName "Subtype" dict
+    subType   = subType
     encoding  = GetEncoding dict
     toUnicode = case lookup "ToUnicode" dict of
                   nothing -> nothing
@@ -23,14 +24,93 @@ def Font (v : Value) =
     ascent = GetDescriptorNumber "Ascent" descriptor
     descent = GetDescriptorNumber "Descent" descriptor
     fontBBox = GetFontBBox dict descriptor
+    cidFont = if subType == "Type0"
+                then just (GetCIDFont dict)
+                else nothing
 
 def FontByRef (r : Ref) = Font {| ref = r |}
+
+def GetCIDFont (dict : Dict) =
+  block
+    let descendants = ResolveVal (Lookup "DescendantFonts" dict) is array
+    length descendants == 1 is true
+    let descendant = ResolveVal (Index descendants 0) is dict
+    let descriptor = GetFontDescriptor descendant
+    subType = LookupName "Subtype" descendant
+    encoding = GetCIDEncoding dict
+    defaultWidth =
+      case lookup "DW" descendant of
+        nothing -> intNumber 1000
+        just v  -> ResolveVal v is number
+    widths = GetCIDWidths descendant
+    ascent = GetDescriptorNumber "Ascent" descriptor
+    descent = GetDescriptorNumber "Descent" descriptor
+    fontBBox = GetFontBBox descendant descriptor
+
+def GetCIDEncoding (dict : Dict) =
+  Optional
+    block
+      let encodingName = ResolveVal (Lookup "Encoding" dict) is name
+      encodingName == "Identity-H" is true
+      {| identityH = {} |}
+
+def GetCIDWidths (dict : Dict) =
+  case lookup "W" dict of
+    nothing -> []
+    just v  ->
+      block
+        let values = ResolveVal v is array
+        let result =
+          many (state = { index = 0, widths = builder })
+            block
+              state.index < length values is true
+              ParseCIDWidth values state
+        result.index == length values is true
+        build result.widths
+
+def ParseCIDWidth values state =
+  block
+    let first =
+      (NumberAsNat
+        (ResolveVal (Index values state.index) is number) as? uint 32)
+        as uint 64
+    case ResolveVal (Index values (state.index + 1)) of
+      array ws ->
+        block
+          let result =
+            for (result = { cid = first, widths = state.widths }; w in ws)
+              block
+                cid = result.cid + 1
+                widths =
+                  emit result.widths
+                    { cid = result.cid as? uint 32
+                    , width = ResolveVal w is number
+                    }
+          index = state.index + 2
+          widths = result.widths
+
+      number lastNumber ->
+        block
+          let last  = NumberAsNat lastNumber as? uint 64
+          let width = ResolveVal (Index values (state.index + 2)) is number
+          let result =
+            many
+              (result = { cid = first, widths = state.widths })
+              block
+                result.cid <= last is true
+                cid = result.cid + 1
+                widths =
+                  emit result.widths
+                    { cid = result.cid as? uint 32, width = width }
+          index  = state.index + 3
+          widths = result.widths
+
+      _ -> Fail "Invalid CID font W entry"
 
 def GetFirstChar (dict : Dict) : maybe (uint 8) =
   case lookup "FirstChar" dict of
     nothing -> nothing
-    just v ->
-      just (NumberAsNat (ResolveVal v is number) as? uint 8)
+    just v  -> just (NumberAsNat (ResolveVal v is number) as? uint 8)
 
 def GetWidths (dict : Dict) : maybe [Number] =
   case lookup "Widths" dict of
