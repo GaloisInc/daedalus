@@ -2,8 +2,9 @@
 
 #![allow(non_snake_case)]
 
+use crate::font_metrics::estimate_glyph_dimensions;
 use crate::TextExtractState;
-use crate::layout_state::Matrix;
+use crate::layout_state::{BoundingBox, ExtractionState, Matrix, Point};
 use crate::text_extract_parsers::{
     CMap::{self, cmap},
     Fonts,
@@ -120,11 +121,12 @@ pub fn ConcatMatrix(
     f: Number,
 ) -> ddl::ParserResult<ddl::Unit> {
     let Some(matrix) = matrix_from_numbers(&a, &b, &c, &d, &e, &f) else {
+        state.user_state.extraction.graphics.ctm = None;
         note_malformed(state);
         return ddl::ParserResult::Ok(ddl::Unit, input);
     };
     let graphics = &mut state.user_state.extraction.graphics;
-    graphics.ctm = matrix.multiply(graphics.ctm);
+    graphics.ctm = graphics.ctm.map(|ctm| matrix.multiply(ctm));
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -134,8 +136,8 @@ pub fn BeginText(
     input: ddl::Input,
 ) -> ddl::ParserResult<ddl::Unit> {
     let extraction = &mut state.user_state.extraction;
-    extraction.text_matrix = Matrix::IDENTITY;
-    extraction.text_line_matrix = Matrix::IDENTITY;
+    extraction.text_matrix = Some(Matrix::IDENTITY);
+    extraction.text_line_matrix = Some(Matrix::IDENTITY);
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -230,12 +232,14 @@ pub fn SetTextMatrix(
     f: Number,
 ) -> ddl::ParserResult<ddl::Unit> {
     let Some(matrix) = matrix_from_numbers(&a, &b, &c, &d, &e, &f) else {
+        state.user_state.extraction.text_matrix = None;
+        state.user_state.extraction.text_line_matrix = None;
         note_malformed(state);
         return ddl::ParserResult::Ok(ddl::Unit, input);
     };
     let extraction = &mut state.user_state.extraction;
-    extraction.text_matrix = matrix;
-    extraction.text_line_matrix = matrix;
+    extraction.text_matrix = Some(matrix);
+    extraction.text_line_matrix = Some(matrix);
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -247,6 +251,8 @@ pub fn MoveTextPosition(
     ty: Number,
 ) -> ddl::ParserResult<ddl::Unit> {
     let (Some(tx), Some(ty)) = (number_to_f64(&tx), number_to_f64(&ty)) else {
+        state.user_state.extraction.text_matrix = None;
+        state.user_state.extraction.text_line_matrix = None;
         note_malformed(state);
         return ddl::ParserResult::Ok(ddl::Unit, input);
     };
@@ -262,6 +268,8 @@ pub fn MoveTextPositionAndSetLeading(
     ty: Number,
 ) -> ddl::ParserResult<ddl::Unit> {
     let (Some(tx), Some(ty)) = (number_to_f64(&tx), number_to_f64(&ty)) else {
+        state.user_state.extraction.text_matrix = None;
+        state.user_state.extraction.text_line_matrix = None;
         note_malformed(state);
         return ddl::ParserResult::Ok(ddl::Unit, input);
     };
@@ -289,12 +297,14 @@ pub fn AdjustTextPosition(
     value: Number,
 ) -> ddl::ParserResult<ddl::Unit> {
     let Some(adjustment) = number_to_f64(&value) else {
+        state.user_state.extraction.text_matrix = None;
         note_malformed(state);
         return ddl::ParserResult::Ok(ddl::Unit, input);
     };
 
     let extraction = &mut state.user_state.extraction;
     let Some(font_size) = extraction.graphics.font_size else {
+        extraction.text_matrix = None;
         extraction.malformed_operators += 1;
         return ddl::ParserResult::Ok(ddl::Unit, input);
     };
@@ -303,7 +313,9 @@ pub fn AdjustTextPosition(
         e: -adjustment / 1000.0 * font_size * horizontal_scaling,
         ..Matrix::IDENTITY
     };
-    extraction.text_matrix = translation.multiply(extraction.text_matrix);
+    extraction.text_matrix = extraction
+        .text_matrix
+        .map(|text_matrix| translation.multiply(text_matrix));
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -369,19 +381,40 @@ pub fn SetFont(
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
+/// Begin collecting one text-showing string as a chunk.
+pub fn BeginTextChunk(
+    state: &mut ddl::ParserStateWith<TextExtractState>,
+    input: ddl::Input,
+) -> ddl::ParserResult<ddl::Unit> {
+    state.user_state.extraction.begin_chunk();
+    ddl::ParserResult::Ok(ddl::Unit, input)
+}
+
+/// Finish collecting the current text chunk.
+pub fn FinishTextChunk(
+    state: &mut ddl::ParserStateWith<TextExtractState>,
+    input: ddl::Input,
+) -> ddl::ParserResult<ddl::Unit> {
+    state.user_state.extraction.finish_chunk();
+    ddl::ParserResult::Ok(ddl::Unit, input)
+}
+
 /// Append decoded UTF-16 code units to the extraction output.
 pub fn EmitUtf16(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    _code_width: ddl::U<8>,
-    _character_code: ddl::U<32>,
+    code_width: ddl::U<8>,
+    character_code: ddl::U<32>,
     text: ddl::Array<ddl::U<16>>,
 ) -> ddl::ParserResult<ddl::Unit> {
-    state
-        .user_state
-        .extraction
-        .output
-        .extend(text.iter().map(|unit| u16::from(*unit)));
+    let text: Vec<u16> = text.iter().map(|unit| u16::from(*unit)).collect();
+    let extraction = &mut state.user_state.extraction;
+    let bounds = position_glyph(
+        extraction,
+        u8::from(code_width),
+        u32::from(character_code),
+    );
+    extraction.append_to_chunk(&text, bounds);
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -418,8 +451,80 @@ fn move_text_position(
         f: ty,
         ..Matrix::IDENTITY
     };
-    extraction.text_line_matrix = translation.multiply(extraction.text_line_matrix);
+    extraction.text_line_matrix = extraction
+        .text_line_matrix
+        .map(|text_line_matrix| translation.multiply(text_line_matrix));
     extraction.text_matrix = extraction.text_line_matrix;
+}
+
+fn position_glyph(
+    extraction: &mut ExtractionState,
+    code_width: u8,
+    character_code: u32,
+) -> Option<BoundingBox> {
+    if code_width != 1 {
+        extraction.text_matrix = None;
+        return None;
+    }
+
+    let Some(character_code) = u8::try_from(character_code).ok() else {
+        extraction.text_matrix = None;
+        return None;
+    };
+    let Some(font) = extraction.graphics.font.as_ref() else {
+        extraction.text_matrix = None;
+        return None;
+    };
+    let Some(font_size) = extraction.graphics.font_size else {
+        extraction.text_matrix = None;
+        return None;
+    };
+    let Some(dimensions) = estimate_glyph_dimensions(font, character_code) else {
+        extraction.text_matrix = None;
+        return None;
+    };
+    let horizontal_scaling = extraction.graphics.horizontal_scaling / 100.0;
+    let word_spacing = if character_code == b' ' {
+        extraction.graphics.word_spacing
+    } else {
+        0.0
+    };
+    let advance = (dimensions.advance_width * font_size
+        + extraction.graphics.character_spacing
+        + word_spacing)
+        * horizontal_scaling;
+    if !advance.is_finite() {
+        extraction.text_matrix = None;
+        return None;
+    }
+
+    let bounds = match (
+        dimensions.vertical_bounds,
+        extraction.text_matrix,
+        extraction.graphics.ctm,
+    ) {
+        (Some(vertical), Some(text_matrix), Some(ctm)) => BoundingBox {
+            min: Point {
+                x: 0.0,
+                y: vertical.bottom * font_size + extraction.graphics.text_rise,
+            },
+            max: Point {
+                x: advance,
+                y: vertical.top * font_size + extraction.graphics.text_rise,
+            },
+        }
+        .transform(text_matrix.multiply(ctm)),
+        _ => None,
+    };
+
+    let translation = Matrix {
+        e: advance,
+        ..Matrix::IDENTITY
+    };
+    extraction.text_matrix = extraction
+        .text_matrix
+        .map(|text_matrix| translation.multiply(text_matrix));
+    bounds
 }
 
 fn set_graphics_number(

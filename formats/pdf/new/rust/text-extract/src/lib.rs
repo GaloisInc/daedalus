@@ -13,6 +13,15 @@ use std::time::Instant;
 
 const GLYPH_MAP: &[u8] = include_bytes!("../../../pdf-text-extract-spec/glyphmap.txt");
 
+pub use crate::layout_state::{BoundingBox, Point};
+
+#[derive(Debug, PartialEq)]
+pub struct TextChunk {
+    pub page_number: u64,
+    pub text: String,
+    pub bounding_box: Option<BoundingBox>,
+}
+
 pub(crate) struct TextExtractState {
     pub(crate) pdf: PdfCos,
     pub(crate) cmap_cache: BTreeMap<Ref, CMap::cmap>,
@@ -54,28 +63,28 @@ impl From<PdfError> for ExtractError {
     }
 }
 
-/// Extract UTF-8 text from the complete contents of a PDF.
-pub fn extract_text_bytes(name: &str, bytes: &[u8]) -> Result<String, ExtractError> {
-    extract_text_bytes_from_page(name, bytes, None)
+/// Extract text chunks from the complete contents of a PDF.
+pub fn extract_chunks_bytes(name: &str, bytes: &[u8]) -> Result<Vec<TextChunk>, ExtractError> {
+    extract_chunks_bytes_from_page(name, bytes, None)
 }
 
-/// Extract UTF-8 text from one page of a PDF, using a one-based page number.
-pub fn extract_page_text_bytes(
+/// Extract text chunks from one page of a PDF, using a one-based page number.
+pub fn extract_page_chunks_bytes(
     name: &str,
     bytes: &[u8],
     page: u64,
-) -> Result<String, ExtractError> {
+) -> Result<Vec<TextChunk>, ExtractError> {
     let page_index = page
         .checked_sub(1)
         .ok_or(ExtractError::InvalidPageNumber(page))?;
-    extract_text_bytes_from_page(name, bytes, Some(page_index))
+    extract_chunks_bytes_from_page(name, bytes, Some(page_index))
 }
 
-fn extract_text_bytes_from_page(
+fn extract_chunks_bytes_from_page(
     name: &str,
     bytes: &[u8],
     page_index: Option<u64>,
-) -> Result<String, ExtractError> {
+) -> Result<Vec<TextChunk>, ExtractError> {
     let pdf = daedalus_pdf_cos::prepare_pdf_bytes(name, bytes)?;
     let root = pdf
         .user_state
@@ -132,6 +141,10 @@ fn extract_text_bytes_from_page(
         };
 
         eprintln!("page {page_number} of {page_count}: extracting text...");
+        state
+            .user_state
+            .extraction
+            .set_current_page(page_number);
         state.reset_parse_error();
         match TextExtract::TextInCatalogPage(
             &mut state,
@@ -157,14 +170,19 @@ fn extract_text_bytes_from_page(
         );
     }
 
-    char::decode_utf16(
-        state
-            .user_state
-            .extraction
-            .output
-            .iter()
-            .copied(),
-    )
-    .map(|character| character.map_err(|_| ExtractError::InvalidUtf16))
-    .collect()
+    state
+        .user_state
+        .extraction
+        .chunks
+        .into_iter()
+        .map(|chunk| {
+            let text =
+                String::from_utf16(&chunk.text).map_err(|_| ExtractError::InvalidUtf16)?;
+            Ok(TextChunk {
+                page_number: chunk.page_number,
+                text,
+                bounding_box: chunk.bounding_box,
+            })
+        })
+        .collect()
 }

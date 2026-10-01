@@ -159,7 +159,7 @@ def FindTextOnPage
                 block
                   inText is true
                   operandCount == 1 is true
-                  DecodeText (GetOperand (i - 1) is string)
+                  DecodeTextChunk (GetOperand (i - 1) is string)
 
             -- Move to the next line and show a text string.
             quote ->
@@ -169,7 +169,7 @@ def FindTextOnPage
                   operandCount == 1 is true
                   let text = GetOperand (i - 1) is string
                   MoveToNextTextLine
-                  DecodeText text
+                  DecodeTextChunk text
 
             -- Set word and character spacing, move to the next line, and
             -- show a text string.
@@ -186,7 +186,7 @@ def FindTextOnPage
                   SetWordSpacing wordSpacing
                   SetCharacterSpacing characterSpacing
                   MoveToNextTextLine
-                  DecodeText text
+                  DecodeTextChunk text
 
             -- Move the text position to the start of another line.
             Td ->
@@ -226,7 +226,7 @@ def FindTextOnPage
                   let xs = GetOperand (i - 1) is array
                   for (done = {}; x in xs)
                     case x of
-                      string text -> DecodeText text
+                      string text -> DecodeTextChunk text
                       number adjustment -> AdjustTextPosition adjustment
                       _ -> NoteMalformedOperator
 
@@ -251,6 +251,12 @@ def Operator inText i P =
       P
       NoteMalformedOperator
     FindTextOnPage inText 0 (i+1)
+
+def DecodeTextChunk str =
+  block
+    BeginTextChunk
+    DecodeText str
+    FinishTextChunk
 
 def DecodeText str =
 
@@ -316,6 +322,8 @@ def MoveTextPosition (tx : Number) (ty : Number) : {}
 def MoveTextPositionAndSetLeading (tx : Number) (ty : Number) : {}
 def MoveToNextTextLine : {}
 def AdjustTextPosition (value : Number) : {}
+def BeginTextChunk : {}
+def FinishTextChunk : {}
 def NoteMalformedOperator : {}
 def CurrentFont : maybe Font
 def LoadFontByRef (encodings : StdEncodings) (r : Ref) : Font

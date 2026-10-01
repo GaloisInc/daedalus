@@ -4,11 +4,13 @@ use daedalus_rts_rust as ddl;
 
 const SIMPLE_FONT_SCALE: f64 = 0.001;
 
+#[derive(Clone, Copy)]
 pub(crate) struct GlyphDimensions {
     pub(crate) advance_width: f64,
     pub(crate) vertical_bounds: Option<VerticalBounds>,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct VerticalBounds {
     pub(crate) bottom: f64,
     pub(crate) top: f64,

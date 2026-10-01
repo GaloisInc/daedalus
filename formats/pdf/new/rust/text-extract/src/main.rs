@@ -1,4 +1,4 @@
-use daedalus_pdf_text_extract::{extract_page_text_bytes, extract_text_bytes};
+use daedalus_pdf_text_extract::{extract_chunks_bytes, extract_page_chunks_bytes};
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
@@ -37,20 +37,40 @@ fn main() -> ExitCode {
 
     let name = input_path.to_string_lossy();
     let result = match page {
-        Some(page) => extract_page_text_bytes(&name, &bytes, page),
-        None => extract_text_bytes(&name, &bytes),
+        Some(page) => extract_page_chunks_bytes(&name, &bytes, page),
+        None => extract_chunks_bytes(&name, &bytes),
     };
-    let text = match result {
-        Ok(text) => text,
+    let chunks = match result {
+        Ok(chunks) => chunks,
         Err(error) => {
             eprintln!("{}: {error}", input_path.display());
             return ExitCode::FAILURE;
         }
     };
 
-    if let Err(error) = io::stdout().lock().write_all(text.as_bytes()) {
-        eprintln!("standard output: {error}");
-        return ExitCode::FAILURE;
+    let mut output = io::stdout().lock();
+    for chunk in chunks {
+        let result = match chunk.bounding_box {
+            Some(bounds) => writeln!(
+                output,
+                "page {} bbox ({}, {})-({}, {}) text {:?}",
+                chunk.page_number,
+                bounds.min.x,
+                bounds.min.y,
+                bounds.max.x,
+                bounds.max.y,
+                chunk.text
+            ),
+            None => writeln!(
+                output,
+                "page {} bbox unknown text {:?}",
+                chunk.page_number, chunk.text
+            ),
+        };
+        if let Err(error) = result {
+            eprintln!("standard output: {error}");
+            return ExitCode::FAILURE;
+        }
     }
 
     ExitCode::SUCCESS
