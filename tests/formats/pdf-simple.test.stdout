@@ -12,14 +12,14 @@ type PdfValue.Ref = { obj: int
                     }
  
 rec
-  type PdfValue.Value = Choose { array: [PdfValue.Value]
-                               ; bool: bool
-                               ; dict: Map [uint 8] PdfValue.Value
-                               ; name: [uint 8]
-                               ; null: {}
-                               ; number: PdfValue.Number
+  type PdfValue.Value = Choose { string: [uint 8]
                                ; ref: PdfValue.Ref
-                               ; string: [uint 8]
+                               ; number: PdfValue.Number
+                               ; null: {}
+                               ; name: [uint 8]
+                               ; dict: Map [uint 8] PdfValue.Value
+                               ; bool: bool
+                               ; array: [PdfValue.Value]
                                }
  
 type PdfValue.Dict0 = { key: [uint 8]

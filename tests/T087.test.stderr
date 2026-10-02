@@ -1,0 +1,4 @@
+./T087.ddl:4:12--4:35:
+  Type cannot be used as a map key
+    • Type: float
+    • Map keys cannot contain float or double values.
