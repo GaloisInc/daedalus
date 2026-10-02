@@ -174,6 +174,7 @@ hsConstraint :: Env -> Constraint -> Term
 hsConstraint env ctr =
   case ctr of
     Integral t -> "RTS.Numeric" `Ap` hsType env t
+    MapKey t   -> "HS.Ord" `Ap` hsType env t
     Arith t    -> "RTS.Arith" `Ap` hsType env t
 
     HasStruct t l a ->

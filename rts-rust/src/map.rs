@@ -32,19 +32,19 @@ impl<K,V> Clone for Map<K,V> {
 }
 
 impl<K: Type, V: Type> PartialEq for Map<K, V>
-  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {
+  where for<'a> K::B<'a>: PartialEq, for<'a> V::B<'a>: PartialEq {
   fn eq(&self, other: &Self) -> bool {
     self.bor() == other.bor()
   }
 }
 
 impl<K: Type, V: Type> Eq for Map<K, V>
-  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {}
+  where for<'a> K::B<'a>: Eq, for<'a> V::B<'a>: Eq {}
 
 impl<K: Type, V: Type> PartialOrd for Map<K, V>
-  where for<'a> K::B<'a>: Ord, for<'a> V::B<'a>: Ord {
+  where for<'a> K::B<'a>: PartialOrd, for<'a> V::B<'a>: PartialOrd {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    Some(self.cmp(other))
+    self.bor().partial_cmp(&other.bor())
   }
 }
 
@@ -71,19 +71,58 @@ impl<'a,K,V> MapB<'a,K,V> {
 impl<'a,K,V> Copy for MapB<'a,K,V> {}
 
 impl<'a, K: Type, V: Type> PartialEq for MapB<'a, K, V>
-  where K::B<'a>: Ord, V::B<'a>: Ord {
+  where K::B<'a>: PartialEq, V::B<'a>: PartialEq {
   fn eq(&self, other: &Self) -> bool {
-    self.cmp(other) == Ordering::Equal
+    let mut it1 = new_map_borrow_iterator(*self);
+    let mut it2 = new_map_borrow_iterator(*other);
+
+    loop {
+      match (it1.ddl_done(), it2.ddl_done()) {
+        (true, true) => return true,
+        (true, false) | (false, true) => return false,
+        (false, false) => {
+          if it1.ddl_key() != it2.ddl_key() ||
+             it1.ddl_val() != it2.ddl_val() {
+            return false
+          }
+          it1 = it1.ddl_next();
+          it2 = it2.ddl_next();
+        }
+      }
+    }
   }
 }
 
 impl<'a, K: Type, V: Type> Eq for MapB<'a, K, V>
-  where K::B<'a>: Ord, V::B<'a>: Ord {}
+  where K::B<'a>: Eq, V::B<'a>: Eq {}
 
 impl<'a, K: Type, V: Type> PartialOrd for MapB<'a, K, V>
-  where K::B<'a>: Ord, V::B<'a>: Ord {
+  where K::B<'a>: PartialOrd, V::B<'a>: PartialOrd {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    Some(self.cmp(other))
+    let mut it1 = new_map_borrow_iterator(*self);
+    let mut it2 = new_map_borrow_iterator(*other);
+
+    loop {
+      match (it1.ddl_done(), it2.ddl_done()) {
+        (true, true) => return Some(Ordering::Equal),
+        (true, false) => return Some(Ordering::Less),
+        (false, true) => return Some(Ordering::Greater),
+        (false, false) => {
+          match it1.ddl_key().partial_cmp(&it2.ddl_key())? {
+            Ordering::Equal => {
+              match it1.ddl_val().partial_cmp(&it2.ddl_val())? {
+                Ordering::Equal => {
+                  it1 = it1.ddl_next();
+                  it2 = it2.ddl_next();
+                }
+                other_ordering => return Some(other_ordering)
+              }
+            }
+            other_ordering => return Some(other_ordering)
+          }
+        }
+      }
+    }
   }
 }
 
