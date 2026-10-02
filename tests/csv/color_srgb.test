@@ -1,0 +1,3 @@
+run
+../../formats/csv/csv.ddl
+--input=inputs/color_srgb.csv
