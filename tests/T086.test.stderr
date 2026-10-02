@@ -1,5 +1,4 @@
-./T086.ddl:2:12--2:57:
+./T086.ddl:2:12--2:56:
   Type cannot be used as a map key
     • Type: float
     • Map keys cannot contain float or double values.
-

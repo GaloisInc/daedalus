@@ -15,10 +15,10 @@ T045.G ?a0 (x : Maybe ?a0) : Grammar ?a0 =
     { just _20 -> pure _20
     }
  
-T045.A ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar (Map ?a0 ?a1) =
+T045.A ?a0 ?a1 (MapKey ?a0) (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar (Map ?a0 ?a1) =
   Insert k v mp
  
-T045.B ?a0 ?a1 (k : ?a0) (mp : Map ?a0 ?a1) : Grammar ?a1 =
+T045.B ?a0 ?a1 (MapKey ?a0) (k : ?a0) (mp : Map ?a0 ?a1) : Grammar ?a1 =
   Lookup k mp
  
 T045.D : Grammar (uint 8) =
@@ -38,10 +38,10 @@ T045.G_ ?a0 (x : Maybe ?a0) : Grammar {} =
     { just _20 -> pure {}
     }
  
-T045.A_ ?a0 ?a1 (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar {} =
+T045.A_ ?a0 ?a1 (MapKey ?a0) (k : ?a0) (v : ?a1) (mp : Map ?a0 ?a1) : Grammar {} =
   @Insert k v mp
  
-T045.B_ ?a0 ?a1 (k : ?a0) (mp : Map ?a0 ?a1) : Grammar {} =
+T045.B_ ?a0 ?a1 (MapKey ?a0) (k : ?a0) (mp : Map ?a0 ?a1) : Grammar {} =
   @Lookup k mp
  
 T045.D_ : Grammar {} =
