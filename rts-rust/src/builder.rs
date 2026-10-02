@@ -35,45 +35,45 @@ impl <'a, T: ddl::Type> Clo for BuilderB<'a,T> {
   fn clo(self) -> Builder<T> { Builder { node: self.node.clo() } }
 }
 
+impl<'a, T: Type + PartialOrd> PartialOrd for BuilderB<'a, T> {
+  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    self.iter().partial_cmp(other.iter())
+  }
+}
+
+impl<'a, T: Type + PartialEq> PartialEq for BuilderB<'a, T> {
+  fn eq(&self, other: &Self) -> bool {
+    self.iter().eq(other.iter())
+  }
+}
+
+impl<'a, T: Type + Eq> Eq for BuilderB<'a, T> {}
+
 impl<'a, T: Type + Ord> Ord for BuilderB<'a, T> {
   fn cmp(&self, other: &Self) -> std::cmp::Ordering {
     self.iter().cmp(other.iter())
   }
 }
 
-impl<'a, T: Type + Ord> PartialOrd for BuilderB<'a, T> {
+impl<T: Type + PartialOrd> PartialOrd for Builder<T> {
   fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-    Some(self.cmp(other))
+    self.iter().partial_cmp(other.iter())
   }
 }
 
-impl<'a, T: Type + Ord> PartialEq for BuilderB<'a, T> {
+impl<T: Type + PartialEq> PartialEq for Builder<T> {
   fn eq(&self, other: &Self) -> bool {
-    self.cmp(other) == std::cmp::Ordering::Equal
+    self.iter().eq(other.iter())
   }
 }
 
-impl<'a, T: Type + Ord> Eq for BuilderB<'a, T> {}
+impl<T: Type + Eq> Eq for Builder<T> {}
 
 impl<T: Type + Ord> Ord for Builder<T> {
   fn cmp(&self, other: &Self) -> std::cmp::Ordering {
     self.iter().cmp(other.iter())
   }
 }
-
-impl<T: Type + Ord> PartialOrd for Builder<T> {
-  fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-    Some(self.cmp(other))
-  }
-}
-
-impl<T: Type + Ord> PartialEq for Builder<T> {
-  fn eq(&self, other: &Self) -> bool {
-    self.cmp(other) == std::cmp::Ordering::Equal
-  }
-}
-
-impl<T: Type + Ord> Eq for Builder<T> {}
 
 impl<'a, T: Type> Iterator for BuilderBIter<'a, T> {
   type Item = &'a T;
