@@ -49,31 +49,33 @@ fn main() -> ExitCode {
     };
 
     let mut output = io::stdout().lock();
+    if let Err(error) = writeln!(output, "page,min_x,min_y,max_x,max_y,text") {
+        eprintln!("standard output: {error}");
+        return ExitCode::FAILURE;
+    }
     for chunk in chunks {
         let result = match chunk.bounding_box {
-            Some(bounds) => writeln!(
+            Some(bounds) => write!(
                 output,
-                "page {} bbox ({}, {})-({}, {}) text {:?}",
-                chunk.page_number,
-                bounds.min.x,
-                bounds.min.y,
-                bounds.max.x,
-                bounds.max.y,
-                chunk.text
+                "{},{:.2},{:.2},{:.2},{:.2},",
+                chunk.page_number, bounds.min.x, bounds.min.y, bounds.max.x, bounds.max.y
             ),
-            None => writeln!(
-                output,
-                "page {} bbox unknown text {:?}",
-                chunk.page_number, chunk.text
-            ),
+            None => write!(output, "{},,,,,", chunk.page_number),
         };
-        if let Err(error) = result {
+        if let Err(error) = result
+            .and_then(|_| write_csv_field(&mut output, &chunk.text))
+            .and_then(|_| writeln!(output))
+        {
             eprintln!("standard output: {error}");
             return ExitCode::FAILURE;
         }
     }
 
     ExitCode::SUCCESS
+}
+
+fn write_csv_field(output: &mut impl Write, value: &str) -> io::Result<()> {
+    write!(output, "\"{}\"", value.replace('"', "\"\""))
 }
 
 fn parse_page(page: &OsStr) -> Option<u64> {

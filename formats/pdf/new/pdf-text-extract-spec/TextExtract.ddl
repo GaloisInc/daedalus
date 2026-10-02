@@ -223,14 +223,7 @@ def FindTextOnPage
                   inText is true
                   operandCount == 1 is true
                   let xs = GetOperand (i - 1) is array
-                  for (done = {}; x in xs)
-                    case x of
-                      string text -> DecodeTextChunk text
-                      number adjustment ->
-                        case Optional (NumberAsDouble adjustment) of
-                          nothing -> NoteMalformedOperator
-                          just value -> AdjustTextPosition value
-                      _ -> NoteMalformedOperator
+                  DecodeTextArray xs
 
             -- Select the text font and font size.
             Tf ->
@@ -259,6 +252,43 @@ def DecodeTextChunk str =
     BeginTextChunk
     DecodeText str
     FinishTextChunk
+
+def DecodeTextArray (xs : [Value]) =
+  block
+    let result =
+      for (state = { chunkOpen = false, startNewChunk = false }; x in xs)
+        case x of
+          string text ->
+            block
+              if state.chunkOpen && state.startNewChunk
+                then FinishTextChunk
+                else Accept
+              if !state.chunkOpen || state.startNewChunk
+                then BeginTextChunk
+                else Accept
+              DecodeText text
+              { chunkOpen = true, startNewChunk = false }
+
+          number adjustment ->
+            case Optional (NumberAsDouble adjustment) of
+              nothing ->
+                block
+                  NoteMalformedOperator
+                  state
+              just value ->
+                block
+                  AdjustTextPosition value
+                  let startNewChunk =
+                    state.startNewChunk || (value <= (-250 : double))
+                  { chunkOpen = state.chunkOpen, startNewChunk = startNewChunk }
+
+          _ ->
+            block
+              NoteMalformedOperator
+              state
+    if result.chunkOpen
+      then FinishTextChunk
+      else Accept
 
 def DecodeText str =
 
