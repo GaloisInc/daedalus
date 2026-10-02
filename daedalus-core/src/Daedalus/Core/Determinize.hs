@@ -197,10 +197,9 @@ findUpRight (ZipLeaf{}) = panic "findUpRight" [ "broken invariant, unexpected ca
 
 buildMatchByte :: Set Integer -> GUID -> Grammar
 buildMatchByte c guid =
-  if ((Set.size c) == 1)
-  then let char = head (Set.toList c) in
-       Pure (Ap0 (IntL char (TUInt (TSize 8))))
-  else Pure (Var (mkNameFromGUID guid))
+  case Set.toList c of
+    [char] -> Pure (Ap0 (IntL char (TUInt (TSize 8))))
+    _ -> Pure (Var (mkNameFromGUID guid))
 
 
 findNextLeaf :: Set Integer -> GUID -> ZipGrammar -> Maybe ZipGrammar
@@ -706,10 +705,9 @@ determinize modl grammar =
   translateList ty guid lst =
     let name = mkNameFromGUID guid in
     case lst of
-      _ | (length lst == 1 && (Set.size (fst (head lst)) == 256)) ->
+      [(allchar, g1)] | Set.size allchar == 256 ->
         Do name (Match SemYes (MatchByte SetAny))
-          (let (allchar, g1) = head lst in
-          buildSubGramMultiple allchar g1)
+          (buildSubGramMultiple allchar g1)
       _ | ((foldr (\ x accu -> x + accu) 0 (map (\ (s,_) -> Set.size s) lst)) == 256) ->
         let maxpos = findMaxSet 0 0 0 lst in
         let (lst1, lst2) = splitAt maxpos lst in
