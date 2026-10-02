@@ -28,6 +28,8 @@ def TextInPageContnet (p : PdfPageContent) =
 
 def GetOperand i = (Index ?instrs i : ContentStreamEntry) is value
 
+def GetOperandDouble i = NumberAsDouble (GetOperand i is number)
+
 def SelectFont fontSize mbValue =
   case mbValue of
     nothing -> SetFont fontSize nothing
@@ -38,12 +40,12 @@ def SelectFont fontSize mbValue =
 
 def GetMatrixOperands i =
   block
-    a = GetOperand (i - 6) is number
-    b = GetOperand (i - 5) is number
-    c = GetOperand (i - 4) is number
-    d = GetOperand (i - 3) is number
-    e = GetOperand (i - 2) is number
-    f = GetOperand (i - 1) is number
+    a = GetOperandDouble (i - 6)
+    b = GetOperandDouble (i - 5)
+    c = GetOperandDouble (i - 4)
+    d = GetOperandDouble (i - 3)
+    e = GetOperandDouble (i - 2)
+    f = GetOperandDouble (i - 1)
 
 def FindTextOnPage
   (inText : bool)
@@ -102,29 +104,28 @@ def FindTextOnPage
               Operator inText i
                 block
                   operandCount == 1 is true
-                  SetCharacterSpacing (GetOperand (i - 1) is number)
+                  SetCharacterSpacing (GetOperandDouble (i - 1))
 
             -- Set the additional spacing applied to word spaces.
             Tw ->
               Operator inText i
                 block
                   operandCount == 1 is true
-                  SetWordSpacing (GetOperand (i - 1) is number)
+                  SetWordSpacing (GetOperandDouble (i - 1))
 
             -- Set horizontal text scaling as a percentage.
             Tz ->
               Operator inText i
                 block
                   operandCount == 1 is true
-                  SetHorizontalScaling
-                    (GetOperand (i - 1) is number)
+                  SetHorizontalScaling (GetOperandDouble (i - 1))
 
             -- Set the vertical distance used to move to the next text line.
             TL ->
               Operator inText i
                 block
                   operandCount == 1 is true
-                  SetLeading (GetOperand (i - 1) is number)
+                  SetLeading (GetOperandDouble (i - 1))
 
             -- Set the text rendering mode.
             Tr ->
@@ -142,7 +143,7 @@ def FindTextOnPage
               Operator inText i
                 block
                   operandCount == 1 is true
-                  SetTextRise (GetOperand (i - 1) is number)
+                  SetTextRise (GetOperandDouble (i - 1))
 
             -- Replace the text matrix and text-line matrix.
             Tm ->
@@ -178,10 +179,8 @@ def FindTextOnPage
                 block
                   inText is true
                   operandCount == 3 is true
-                  let wordSpacing =
-                    GetOperand (i - 3) is number
-                  let characterSpacing =
-                    GetOperand (i - 2) is number
+                  let wordSpacing = GetOperandDouble (i - 3)
+                  let characterSpacing = GetOperandDouble (i - 2)
                   let text = GetOperand (i - 1) is string
                   SetWordSpacing wordSpacing
                   SetCharacterSpacing characterSpacing
@@ -194,8 +193,8 @@ def FindTextOnPage
                 block
                   inText is true
                   operandCount == 2 is true
-                  let tx = GetOperand (i - 2) is number
-                  let ty = GetOperand (i - 1) is number
+                  let tx = GetOperandDouble (i - 2)
+                  let ty = GetOperandDouble (i - 1)
                   MoveTextPosition tx ty
 
             -- Move the text position and set leading to the negative
@@ -205,8 +204,8 @@ def FindTextOnPage
                 block
                   inText is true
                   operandCount == 2 is true
-                  let tx = GetOperand (i - 2) is number
-                  let ty = GetOperand (i - 1) is number
+                  let tx = GetOperandDouble (i - 2)
+                  let ty = GetOperandDouble (i - 1)
                   MoveTextPositionAndSetLeading tx ty
 
             -- Move to the start of the next text line.
@@ -227,7 +226,10 @@ def FindTextOnPage
                   for (done = {}; x in xs)
                     case x of
                       string text -> DecodeTextChunk text
-                      number adjustment -> AdjustTextPosition adjustment
+                      number adjustment ->
+                        case Optional (NumberAsDouble adjustment) of
+                          nothing -> NoteMalformedOperator
+                          just value -> AdjustTextPosition value
                       _ -> NoteMalformedOperator
 
             -- Select the text font and font size.
@@ -236,7 +238,7 @@ def FindTextOnPage
                 block
                   operandCount == 2 is true
                   let fontName = GetOperand (i - 2) is name
-                  let fontSize = GetOperand (i - 1) is number
+                  let fontSize = GetOperandDouble (i - 1)
                   let fontValue = Lookup fontName ?resources.fonts
                   SelectFont fontSize (just fontValue)
 
@@ -306,28 +308,28 @@ def ResetPage : {}
 def SaveGraphicsState : {}
 def RestoreGraphicsState : {}
 def ConcatMatrix
-  (a : Number) (b : Number) (c : Number)
-  (d : Number) (e : Number) (f : Number) : {}
+  (a : double) (b : double) (c : double)
+  (d : double) (e : double) (f : double) : {}
 def BeginText : {}
-def SetCharacterSpacing (value : Number) : {}
-def SetWordSpacing (value : Number) : {}
-def SetHorizontalScaling (value : Number) : {}
-def SetLeading (value : Number) : {}
+def SetCharacterSpacing (value : double) : {}
+def SetWordSpacing (value : double) : {}
+def SetHorizontalScaling (value : double) : {}
+def SetLeading (value : double) : {}
 def SetRenderingMode (value : uint 8) : {}
-def SetTextRise (value : Number) : {}
+def SetTextRise (value : double) : {}
 def SetTextMatrix
-  (a : Number) (b : Number) (c : Number)
-  (d : Number) (e : Number) (f : Number) : {}
-def MoveTextPosition (tx : Number) (ty : Number) : {}
-def MoveTextPositionAndSetLeading (tx : Number) (ty : Number) : {}
+  (a : double) (b : double) (c : double)
+  (d : double) (e : double) (f : double) : {}
+def MoveTextPosition (tx : double) (ty : double) : {}
+def MoveTextPositionAndSetLeading (tx : double) (ty : double) : {}
 def MoveToNextTextLine : {}
-def AdjustTextPosition (value : Number) : {}
+def AdjustTextPosition (value : double) : {}
 def BeginTextChunk : {}
 def FinishTextChunk : {}
 def NoteMalformedOperator : {}
 def CurrentFont : maybe Font
 def LoadFontByRef (encodings : StdEncodings) (r : Ref) : Font
-def SetFont (fontSize : Number) (font : maybe Font) : {}
+def SetFont (fontSize : double) (font : maybe Font) : {}
 def EmitUtf16
   (codeWidth : uint 8)
   (characterCode : uint 32)

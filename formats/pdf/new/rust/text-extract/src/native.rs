@@ -2,14 +2,13 @@
 
 #![allow(non_snake_case)]
 
-use crate::TextExtractState;
 use crate::font_metrics::estimate_glyph_dimensions;
 use crate::layout_state::{BoundingBox, ExtractionState, Matrix, Point};
 use crate::text_extract_parsers::{
     CMap::{self, cmap},
     Fonts,
 };
-use daedalus_pdf_cos::pdfcos_parsers::PdfValue::Number;
+use crate::TextExtractState;
 use daedalus_pdf_cos::{Ref, TopDecl};
 use daedalus_rts_rust as ddl;
 use ddl::Type;
@@ -106,18 +105,14 @@ pub fn RestoreGraphicsState(
 pub fn ConcatMatrix(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    a: Number,
-    b: Number,
-    c: Number,
-    d: Number,
-    e: Number,
-    f: Number,
+    a: f64,
+    b: f64,
+    c: f64,
+    d: f64,
+    e: f64,
+    f: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    let Some(matrix) = matrix_from_numbers(&a, &b, &c, &d, &e, &f) else {
-        state.user_state.extraction.graphics.ctm = None;
-        note_malformed(state);
-        return ddl::ParserResult::Ok(ddl::Unit, input);
-    };
+    let matrix = Matrix { a, b, c, d, e, f };
     let graphics = &mut state.user_state.extraction.graphics;
     graphics.ctm = graphics.ctm.map(|ctm| matrix.multiply(ctm));
     ddl::ParserResult::Ok(ddl::Unit, input)
@@ -147,11 +142,9 @@ pub fn NoteMalformedOperator(
 pub fn SetCharacterSpacing(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    value: Number,
+    value: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    set_graphics_number(state, &value, |graphics, value| {
-        graphics.character_spacing = value;
-    });
+    state.user_state.extraction.graphics.character_spacing = value;
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -159,11 +152,9 @@ pub fn SetCharacterSpacing(
 pub fn SetWordSpacing(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    value: Number,
+    value: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    set_graphics_number(state, &value, |graphics, value| {
-        graphics.word_spacing = value;
-    });
+    state.user_state.extraction.graphics.word_spacing = value;
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -171,11 +162,9 @@ pub fn SetWordSpacing(
 pub fn SetHorizontalScaling(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    value: Number,
+    value: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    set_graphics_number(state, &value, |graphics, value| {
-        graphics.horizontal_scaling = value;
-    });
+    state.user_state.extraction.graphics.horizontal_scaling = value;
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -183,11 +172,9 @@ pub fn SetHorizontalScaling(
 pub fn SetLeading(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    value: Number,
+    value: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    set_graphics_number(state, &value, |graphics, value| {
-        graphics.leading = value;
-    });
+    state.user_state.extraction.graphics.leading = value;
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -205,11 +192,9 @@ pub fn SetRenderingMode(
 pub fn SetTextRise(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    value: Number,
+    value: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    set_graphics_number(state, &value, |graphics, value| {
-        graphics.text_rise = value;
-    });
+    state.user_state.extraction.graphics.text_rise = value;
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
@@ -217,19 +202,14 @@ pub fn SetTextRise(
 pub fn SetTextMatrix(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    a: Number,
-    b: Number,
-    c: Number,
-    d: Number,
-    e: Number,
-    f: Number,
+    a: f64,
+    b: f64,
+    c: f64,
+    d: f64,
+    e: f64,
+    f: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    let Some(matrix) = matrix_from_numbers(&a, &b, &c, &d, &e, &f) else {
-        state.user_state.extraction.text_matrix = None;
-        state.user_state.extraction.text_line_matrix = None;
-        note_malformed(state);
-        return ddl::ParserResult::Ok(ddl::Unit, input);
-    };
+    let matrix = Matrix { a, b, c, d, e, f };
     let extraction = &mut state.user_state.extraction;
     extraction.text_matrix = Some(matrix);
     extraction.text_line_matrix = Some(matrix);
@@ -240,15 +220,9 @@ pub fn SetTextMatrix(
 pub fn MoveTextPosition(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    tx: Number,
-    ty: Number,
+    tx: f64,
+    ty: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    let (Some(tx), Some(ty)) = (number_to_f64(&tx), number_to_f64(&ty)) else {
-        state.user_state.extraction.text_matrix = None;
-        state.user_state.extraction.text_line_matrix = None;
-        note_malformed(state);
-        return ddl::ParserResult::Ok(ddl::Unit, input);
-    };
     move_text_position(&mut state.user_state.extraction, tx, ty);
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
@@ -257,15 +231,9 @@ pub fn MoveTextPosition(
 pub fn MoveTextPositionAndSetLeading(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    tx: Number,
-    ty: Number,
+    tx: f64,
+    ty: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    let (Some(tx), Some(ty)) = (number_to_f64(&tx), number_to_f64(&ty)) else {
-        state.user_state.extraction.text_matrix = None;
-        state.user_state.extraction.text_line_matrix = None;
-        note_malformed(state);
-        return ddl::ParserResult::Ok(ddl::Unit, input);
-    };
     let extraction = &mut state.user_state.extraction;
     extraction.graphics.leading = -ty;
     move_text_position(extraction, tx, ty);
@@ -287,14 +255,8 @@ pub fn MoveToNextTextLine(
 pub fn AdjustTextPosition(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    value: Number,
+    adjustment: f64,
 ) -> ddl::ParserResult<ddl::Unit> {
-    let Some(adjustment) = number_to_f64(&value) else {
-        state.user_state.extraction.text_matrix = None;
-        note_malformed(state);
-        return ddl::ParserResult::Ok(ddl::Unit, input);
-    };
-
     let extraction = &mut state.user_state.extraction;
     let Some(font_size) = extraction.graphics.font_size else {
         extraction.text_matrix = None;
@@ -353,13 +315,9 @@ pub fn LoadFontByRef(
 pub fn SetFont(
     state: &mut ddl::ParserStateWith<TextExtractState>,
     input: ddl::Input,
-    font_size: Number,
+    font_size: f64,
     font: ddl::Maybe<Fonts::Font>,
 ) -> ddl::ParserResult<ddl::Unit> {
-    let Some(font_size) = number_to_f64(&font_size) else {
-        note_malformed(state);
-        return ddl::ParserResult::Ok(ddl::Unit, input);
-    };
     let graphics = &mut state.user_state.extraction.graphics;
     graphics.font = match font {
         ddl::Maybe::Just(font) => Some(font),
@@ -402,29 +360,6 @@ pub fn EmitUtf16(
     ddl::ParserResult::Ok(ddl::Unit, input)
 }
 
-fn number_to_f64(number: &Number) -> Option<f64> {
-    let value = number.num.to_f64() * 10.0_f64.powf(number.exp.to_f64());
-    value.is_finite().then_some(value)
-}
-
-fn matrix_from_numbers(
-    a: &Number,
-    b: &Number,
-    c: &Number,
-    d: &Number,
-    e: &Number,
-    f: &Number,
-) -> Option<Matrix> {
-    Some(Matrix {
-        a: number_to_f64(a)?,
-        b: number_to_f64(b)?,
-        c: number_to_f64(c)?,
-        d: number_to_f64(d)?,
-        e: number_to_f64(e)?,
-        f: number_to_f64(f)?,
-    })
-}
-
 fn move_text_position(extraction: &mut crate::layout_state::ExtractionState, tx: f64, ty: f64) {
     let translation = Matrix {
         e: tx,
@@ -442,29 +377,46 @@ fn position_glyph(
     code_width: u8,
     character_code: u32,
 ) -> Option<BoundingBox> {
-    if code_width != 1 {
-        extraction.text_matrix = None;
-        return None;
-    }
-
-    let Some(character_code) = u8::try_from(character_code).ok() else {
-        extraction.text_matrix = None;
-        return None;
-    };
     let Some(font) = extraction.graphics.font.as_ref() else {
         extraction.text_matrix = None;
         return None;
+    };
+    let (metric_code, is_simple_font) = match &font.cidFont {
+        // Identity-H maps each two-byte source code directly to a CID.
+        ddl::Maybe::Just(cid_font)
+            if code_width == 2 && matches!(&cid_font.encoding, ddl::Maybe::Just(_)) =>
+        {
+            (character_code, false)
+        }
+        // Other CID encodings and source-code widths are not yet supported.
+        ddl::Maybe::Just(_) => {
+            extraction.text_matrix = None;
+            return None;
+        }
+        // Simple fonts use a single-byte character code for metric lookup.
+        ddl::Maybe::Nothing if code_width == 1 => {
+            let Some(character_code) = u8::try_from(character_code).ok() else {
+                extraction.text_matrix = None;
+                return None;
+            };
+            (character_code.into(), true)
+        }
+        // Multi-byte source codes require a supported CID font.
+        ddl::Maybe::Nothing => {
+            extraction.text_matrix = None;
+            return None;
+        }
     };
     let Some(font_size) = extraction.graphics.font_size else {
         extraction.text_matrix = None;
         return None;
     };
-    let Some(dimensions) = estimate_glyph_dimensions(font, character_code.into()) else {
+    let Some(dimensions) = estimate_glyph_dimensions(font, metric_code) else {
         extraction.text_matrix = None;
         return None;
     };
     let horizontal_scaling = extraction.graphics.horizontal_scaling / 100.0;
-    let word_spacing = if character_code == b' ' {
+    let word_spacing = if is_simple_font && metric_code == u32::from(b' ') {
         extraction.graphics.word_spacing
     } else {
         0.0
@@ -505,17 +457,6 @@ fn position_glyph(
         .text_matrix
         .map(|text_matrix| translation.multiply(text_matrix));
     bounds
-}
-
-fn set_graphics_number(
-    state: &mut ddl::ParserStateWith<TextExtractState>,
-    number: &Number,
-    update: impl FnOnce(&mut crate::layout_state::GraphicsState, f64),
-) {
-    match number_to_f64(number) {
-        Some(value) => update(&mut state.user_state.extraction.graphics, value),
-        None => note_malformed(state),
-    }
 }
 
 fn note_malformed(state: &mut ddl::ParserStateWith<TextExtractState>) {

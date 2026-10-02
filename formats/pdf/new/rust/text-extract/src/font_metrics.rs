@@ -1,5 +1,4 @@
 use crate::text_extract_parsers::Fonts;
-use daedalus_pdf_cos::pdfcos_parsers::PdfValue::Number;
 use daedalus_rts_rust as ddl;
 use ddl::Type;
 
@@ -38,7 +37,7 @@ fn estimate_simple_glyph_dimensions(
 ) -> Option<GlyphDimensions> {
     let character_code = u8::try_from(character_code).ok()?;
     let advance_width = simple_explicit_width(font, character_code)
-        .or_else(|| maybe_number(&font.missingWidth))
+        .or_else(|| maybe_double(&font.missingWidth))
         .filter(|width| *width >= 0.0)?
         * SIMPLE_FONT_SCALE;
 
@@ -58,7 +57,7 @@ fn estimate_simple_glyph_dimensions(
 
 fn estimate_cid_glyph_dimensions(font: &Fonts::GetCIDFont, cid: u32) -> Option<GlyphDimensions> {
     let advance_width = cid_explicit_width(font, cid)
-        .or_else(|| number_to_f64(&font.defaultWidth))
+        .or(Some(font.defaultWidth))
         .filter(|width| *width >= 0.0)?
         * SIMPLE_FONT_SCALE;
 
@@ -89,11 +88,9 @@ fn cid_explicit_width(font: &Fonts::GetCIDFont, cid: u32) -> Option<f64> {
                 return None;
             }
             let index = cid.checked_sub(first)? as usize;
-            number_to_f64(widths.get(index)?)
+            widths.get(index).copied()
         }
-        Fonts::cidWidth::Range((last, width)) => (cid <= u32::from(last))
-            .then(|| number_to_f64(&width))
-            .flatten(),
+        Fonts::cidWidth::Range((last, width)) => (cid <= u32::from(last)).then_some(width),
     }
 }
 
@@ -106,33 +103,28 @@ fn simple_explicit_width(font: &Fonts::Font, character_code: u8) -> Option<f64> 
     };
 
     let index = character_code.checked_sub(u8::from(*first_character))? as usize;
-    number_to_f64(widths.get(index)?)
+    widths.get(index).copied()
 }
 
 fn vertical_bounds(
-    descent: &ddl::Maybe<Number>,
-    ascent: &ddl::Maybe<Number>,
-    font_bbox: &ddl::Maybe<ddl::Array<Number>>,
+    descent: &ddl::Maybe<f64>,
+    ascent: &ddl::Maybe<f64>,
+    font_bbox: &ddl::Maybe<ddl::Array<f64>>,
 ) -> Option<(f64, f64)> {
-    match (maybe_number(descent), maybe_number(ascent)) {
+    match (maybe_double(descent), maybe_double(ascent)) {
         (Some(descent), Some(ascent)) => Some((descent, ascent)),
         _ => {
             let ddl::Maybe::Just(bbox) = font_bbox else {
                 return None;
             };
-            Some((number_to_f64(bbox.get(1)?)?, number_to_f64(bbox.get(3)?)?))
+            Some((*bbox.get(1)?, *bbox.get(3)?))
         }
     }
 }
 
-fn maybe_number(number: &ddl::Maybe<Number>) -> Option<f64> {
+fn maybe_double(number: &ddl::Maybe<f64>) -> Option<f64> {
     match number {
-        ddl::Maybe::Just(number) => number_to_f64(number),
+        ddl::Maybe::Just(number) => Some(*number),
         ddl::Maybe::Nothing => None,
     }
-}
-
-fn number_to_f64(number: &Number) -> Option<f64> {
-    let value = number.num.to_f64() * 10.0_f64.powf(number.exp.to_f64());
-    value.is_finite().then_some(value)
 }

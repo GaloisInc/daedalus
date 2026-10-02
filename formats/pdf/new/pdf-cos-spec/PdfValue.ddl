@@ -106,6 +106,42 @@ def NumberAsNat (x : Number) =
     Guard (x.num >= 0 && x.exp == 0)
     x.num
 
+def NumberAsDouble (number : Number) : double =
+  block
+    -- Reduce the integer mantissa until it has a finite double representation.
+    let normalized =
+      many
+        (state =
+          { num = number.num
+          , exp = number.exp
+          , value = finiteDouble number.num
+          })
+        block
+          state.value is nothing
+          let num = state.num / 10
+          { num = num, exp = state.exp + 1, value = finiteDouble num }
+    -- Apply the remaining decimal exponent to the converted mantissa.
+    let result =
+      many
+        (state =
+          { value = normalized.value is just
+          , exp = normalized.exp
+          })
+        block
+          state.exp < 0 is true
+          { value = state.value / (10 : double), exp = state.exp + 1 }
+    result.exp == 0 is true
+    isNaN result.value is false
+    isInfinite result.value is false
+    result.value
+
+def finiteDouble (number : int) : maybe double =
+  block
+    let value = number as! double
+    if isNaN value || isInfinite value
+      then nothing
+      else just value
+
 --------------------------------------------------------------------------------
 -- Literal Strings (Section 7.3.4.2)
 
@@ -228,5 +264,3 @@ def nullValue : Value = {| null = {} |}
 def Token P               = block $$ = P; Many AnyWS
 def KW x                  = Token (@Match x)
 def Between open close P  = block KW open; $$ = P; KW close
-
-
