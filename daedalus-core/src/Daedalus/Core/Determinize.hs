@@ -711,16 +711,17 @@ determinize modl grammar =
       _ | ((foldr (\ x accu -> x + accu) 0 (map (\ (s,_) -> Set.size s) lst)) == 256) ->
         let maxpos = findMaxSet 0 0 0 lst in
         let (lst1, lst2) = splitAt maxpos lst in
-        let (cmax, gmax) = head lst2 in
-        let lst3 = tail lst2 in
-        Do name (Match SemYes (MatchByte SetAny))
-          (GCase (Case name
-            ((map
-                (\ (c, g1) -> (PNum c, buildSubGramSingle c g1))
-                -- This explodes the sharing into all the characters in the set
-                (concatMap (\ (s, r) -> map (\c -> (c, r)) (Set.toList s)) (lst1 ++ lst3))
-              ) ++ [ (PAny, buildSubGramMultiple cmax gmax) ]
-            )))
+        case lst2 of
+          [] -> panic "translateList" ["impossible: invalid max position"]
+          ((cmax, gmax) : lst3) ->
+            Do name (Match SemYes (MatchByte SetAny))
+              (GCase (Case name
+                ((map
+                    (\ (c, g1) -> (PNum c, buildSubGramSingle c g1))
+                    -- This explodes the sharing into all the characters in the set
+                    (concatMap (\ (s, r) -> map (\c -> (c, r)) (Set.toList s)) (lst1 ++ lst3))
+                  ) ++ [ (PAny, buildSubGramMultiple cmax gmax) ]
+                )))
       _ ->
         Do name (Match SemYes (MatchByte SetAny))
           (GCase (Case name
