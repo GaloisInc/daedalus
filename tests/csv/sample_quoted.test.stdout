@@ -1,0 +1,38 @@
+--- Found 1 results:
+{ header: [ "id"
+          , "description"
+          , "note"
+          , "multiline"
+          ]
+, data: [ [ "1"
+          , "Simple, with a comma"
+          , "No quotes here"
+          , "single line"
+          ]
+        , [ "2"
+          , "He said \"hello\""
+          , "Embedded \"double\" quotes"
+          , "still single"
+          ]
+        , [ "3"
+          , "Mix: \"quoted, comma\""
+          , "Normal text"
+          , "Line A\nLine B\nLine C"
+          ]
+        , [ "4"
+          , [ ]
+          , "Empty first field above"
+          , "newline at end\n"
+          ]
+        , [ "5"
+          , "\"already quoted\""
+          , "starts and ends with quotes"
+          , "\rcarriage return\r"
+          ]
+        , [ "6"
+          , "commas, quotes \"x\", and\nnewlines"
+          , "all three"
+          , "plain"
+          ]
+        ]
+}
