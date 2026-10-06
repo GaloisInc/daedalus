@@ -32,27 +32,26 @@ def CSV =
 
 -- Headers
 
-def Header = OneOrMoreSepBy Name $comma
+def Header = OneOrMoreSepBy Name ?$sep
 
 def Name = Field
 
 -- Data records
 
-def Record n = NSepBy n Field $comma
+def Record n = NSepBy n Field ?$sep
 
 def Field = Escaped <| NonEscaped
 
 def Escaped =
   block
     $dquote
-    $$ = Many ($textdata <| $comma <| $cr <| $lf <| { $dquote; $dquote })
+    $$ = Many ($textdata <| ?$sep <| $cr <| $lf <| { $dquote; $dquote })
     $dquote
 
 def NonEscaped = Many $textdata
 
 -- Characters / character classes
 
-def $comma    = ','
 def $dquote   = '"'
 
 def $cr       = '\r'
@@ -60,7 +59,8 @@ def $lf       = '\n'
 def CRLF      = { $cr; $lf }
 def Newline   = CRLF <| $lf
 
-def $textdata = ' ' | '!' | '#' .. '+' | '-' .. '~'
+-- All printable characters except the separator and double-quote
+def $textdata = (' ' | '!' | '#' .. '~') - ?$sep
 
 -- Helpers
 
@@ -73,4 +73,4 @@ def OneOrMoreSepBy P Sep = ManyStart P {Sep; P}
 def NSepBy n P Sep =
   build (for (out = emit builder P; x in rangeUp (n - 1)) (emit out { Sep; P }))
 
-def Main = { $$ = CSV; END }
+def Main = { let ?$sep = ','; $$ = CSV; END }
