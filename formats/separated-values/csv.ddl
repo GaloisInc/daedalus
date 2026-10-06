@@ -20,57 +20,8 @@
                  common in other CSV parser implementations
 -}
 
-import Daedalus
+import SeparatedValues
 
--- Complete CSV
+def CSV = { let ?$sep = ','; $$ = SV; }
 
-def CSV =
-  block
-    header = { $$ = Header; Newline }
-    data = OneOrMoreSepBy (Record (length header)) Newline
-    Optional Newline
-
--- Headers
-
-def Header = OneOrMoreSepBy Name ?$sep
-
-def Name = Field
-
--- Data records
-
-def Record n = NSepBy n Field ?$sep
-
-def Field = Escaped <| NonEscaped
-
-def Escaped =
-  block
-    $dquote
-    $$ = Many ($textdata <| ?$sep <| $cr <| $lf <| { $dquote; $dquote })
-    $dquote
-
-def NonEscaped = Many $textdata
-
--- Characters / character classes
-
-def $dquote   = '"'
-
-def $cr       = '\r'
-def $lf       = '\n'
-def CRLF      = { $cr; $lf }
-def Newline   = CRLF <| $lf
-
--- All printable characters except the separator and double-quote
-def $textdata = (' ' | '!' | '#' .. '~') - ?$sep
-
--- Helpers
-
--- Parse one or more `P` separated by `Sep`, producing an array of the
--- results.
-def OneOrMoreSepBy P Sep = ManyStart P {Sep; P}
-
--- Parse `P` `n` times, separated by `Sep`, producing an array of the
--- results.
-def NSepBy n P Sep =
-  build (for (out = emit builder P; x in rangeUp (n - 1)) (emit out { Sep; P }))
-
-def Main = { let ?$sep = ','; $$ = CSV; END }
+def Main = { $$ = CSV; END }
