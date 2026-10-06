@@ -148,7 +148,7 @@ instance Show(ControlAction) where
   show (BoundIncr)         = "BoundIncr"
   show (ActivateFrame _) = "ActivateFrame"
   show (DeactivateReady) = "DeactivateReady"
-  show (Push n _ dest)     = "Push" ++ "_" ++ (tail $ init $ showName n) ++ "_" ++ show dest
+  show (Push n _ dest)     = "Push" ++ "_" ++ showName n ++ "_" ++ show dest
   show (Pop)               = "Pop"
   show (ForInit _ _ _ _)   = "ForInit"
   show (ForHasMore)        = "ForHasMore"
@@ -395,7 +395,8 @@ showCallStack ctrl =
       case x of
         CallFrame name _ _ _ ->
           showCallStack xs ++ "\n"
-          ++ spacing ++ showName name
+          ++ spacing
+          ++ "\"" ++ showName name ++ "\""
         _ -> showCallStack xs
   where spacing = "  "
 
@@ -408,7 +409,8 @@ showCallStackDebug ctrl =
         CallFrame name _ _ semData ->
           showCallStackDebug xs ++ "\n"
           ++ (concat $ map (\ s -> s ++ "\n") $ showSemanticData semData)
-          ++ spacing ++ showName name
+          ++ spacing
+          ++ "\"" ++ showName name ++ "\""
         _ -> showCallStackDebug xs
   where spacing = "  "
 
@@ -421,7 +423,7 @@ showSemanticData sem =
       showSemanticData xs ++
       case x of
         SEnvMap m ->
-          let showm = Map.foldrWithKey (\ k _v acc -> (spacing ++ showName k) : acc) [] m
+          let showm = Map.foldrWithKey (\ k _v acc -> (spacing ++ "\"" ++ showName k ++ "\"") : acc) [] m
           in showm
         SManyVal lst ->
           let showm = map (\ _ -> spacing ++ "*") lst
