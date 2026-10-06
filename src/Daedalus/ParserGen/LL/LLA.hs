@@ -607,8 +607,12 @@ printAmbiguities aut lla =
              Nothing ->
                return ()
              Just (l, conflicts) ->
-               do putStrLn "*******  Found Ambiguity  *******"
-                  putStrLn ("  Start: " ++ (head ann))
+               do let start =
+                        case ann of
+                          [] -> "<none>"
+                          (a:_) -> a
+                  putStrLn "*******  Found Ambiguity  *******"
+                  putStrLn ("  Start: " ++ start)
                   putStrLn ("  Paths :")
                   printConflicts conflicts
                   putStrLn "********  input witness  ********"
