@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 
 import Daedalus.Core
 import Daedalus.Core.Free
+import Daedalus.Panic (panic)
 
 stripFailM :: Module -> Module
 stripFailM m = m { mGFuns = map stripFailGFun (mGFuns m) }
@@ -43,10 +44,12 @@ stripFailG gram =
 
     -- FIXME: this breaks when there are default cases
     GCase (Case e cs) ->
-      case filter (not . isFail . snd) cs of
-        []  -> snd (head cs) -- propagate failure (should be a Fail)
-        cs' | not (any isNonFailPAny cs) -> GCase (Case e cs')
-        _ -> GCase (Case e cs)
+      case cs of
+        [] -> panic "stripFailG" ["empty case alternatives"]
+        (a:_) -> case filter (not . isFail . snd) cs of
+          []  -> snd a -- propagate failure (should be a Fail)
+          cs' | not (any isNonFailPAny cs) -> GCase (Case e cs')
+          _ -> GCase (Case e cs)
         
     nonFail -> nonFail
 
