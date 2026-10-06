@@ -447,11 +447,7 @@ instance PP a => PP (TC a k) where
   ppPrec n e = ppAnnot e $$ ppPrec n (texprValue e)
 
 ppAnnot :: PP a => TC a k -> Doc
-ppAnnot e
-  | enable = "--" <+> pp (texprAnnot e)
-  | otherwise = empty
-  where
-  enable = False
+ppAnnot _e = empty
 
 instance PP a => PP (Loop a k) where
   ppPrec n lp = wrapIf (n > 0) $
