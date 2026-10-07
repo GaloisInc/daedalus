@@ -56,7 +56,7 @@ def $dquote   = '"'
 def $cr       = '\r'
 def $lf       = '\n'
 def CRLF      = { $cr; $lf }
-def Newline   = CRLF <| $lf
+def Newline   = CRLF <| $cr <| $lf
 
 -- All printable characters except the separator and double-quote
 def $textdata = (' ' | '!' | '#' .. '~') - ?$sep
