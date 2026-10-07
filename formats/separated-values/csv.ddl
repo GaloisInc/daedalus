@@ -15,7 +15,7 @@
                    lines
                - CSVs where records don't have the proper number of
                  columns (as determined by the header) are rejected
-               - Both CRLF and LF are accepted as the separator
+               - CRLF, CR, and LF are all accepted as the separator
                  between header/records; this extra permissiveness is
                  common in other CSV parser implementations
 -}
