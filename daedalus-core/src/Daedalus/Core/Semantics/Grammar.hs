@@ -20,6 +20,7 @@ import           Daedalus.Core
 import           Daedalus.Core.Semantics.Parser
 import           Daedalus.Core.Semantics.Env
 import           Daedalus.Core.Semantics.Expr
+import           Daedalus.Panic (panic)
 import           Daedalus.SourceRange         (SourcePos (..), SourceRange (..),
                                                synthetic)
 
@@ -119,11 +120,13 @@ evalMatch sem mat env =
              bs = valueToByteString v
              ok = bs `BS8.isPrefixOf` RTS.inputBytes i
          unless ok (RTS.pError' RTS.FromSystem [] "match failed")
-         let Just i1 = RTS.advanceBy (RTS.intToSize (BS.length bs)) i
-         RTS.pSetInput $! i1
-         case sem of
-           SemNo  -> pure vUnit
-           SemYes -> pure v
+         case RTS.advanceBy (RTS.intToSize (BS.length bs)) i of
+          Just i1 -> do
+            RTS.pSetInput $! i1
+            case sem of
+              SemNo  -> pure vUnit
+              SemYes -> pure v
+          Nothing -> panic "evalMatch" ["impossible: couldn't advance input by known prefix"]
 
     MatchByte b ->
       do i <- RTS.pPeek
