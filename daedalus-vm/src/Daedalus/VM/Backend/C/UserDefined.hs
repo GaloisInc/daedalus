@@ -877,7 +877,6 @@ defCopyFree vis boxed fun tdecl =
                             ]
                             cBreak
                         ]
-              TBitdata {} -> []
 
   where
   stmts struct =
