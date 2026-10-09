@@ -68,6 +68,7 @@ evalG gram env =
         NoFail     -> evalG g env
         SrcAnnot t -> RTS.pEnter (RTS.TextAnnot (Text.unpack t)) (evalG g env)
         SrcRange r -> RTS.pEnter (RTS.RngAnnot (toRtsRange r))   (evalG g env)
+        NodeID _   -> evalG g env
 
     GCase c ->
       evalCase evalG (RTS.pError' RTS.FromSystem [] "Pattern match failure") c env
