@@ -1103,7 +1103,9 @@ hsBitdataCase doAlt ifFail env e alts mbD =
         , doAlt env (tcAltBody a)
         )
       | a <- NE.toList alts
-      , let vs = hsPatVars (head (tcAltPatterns a))
+      , let vs = case tcAltPatterns a of
+              [] -> panic "hsBitDataCase" ["empty patterns in TCAlt"]
+              (p:_) -> hsPatVars p
       ]
       (doAlt env <$> mbD)
 

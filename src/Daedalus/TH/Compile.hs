@@ -18,6 +18,8 @@ import qualified Daedalus.VM.Compile.Decl as VM (moduleToProgram)
 
 import qualified Daedalus.Driver as DDL
 
+import Daedalus.Panic (panic)
+
 data CompileConfig = CompileConfig
   { userMonad       :: Maybe TH.TypeQ
   , userPrimitives  :: [(Text, [TH.ExpQ] -> TH.ExpQ)]
@@ -109,7 +111,9 @@ loadDDLVM cfg src =
      DDL.passVM specMod
      m <- DDL.ddlGetAST specMod DDL.astVM
 
-     pure $ head $ VM.pModules $ VM.moduleToProgram [m]
+     case VM.pModules $ VM.moduleToProgram [m] of
+      (m':_) -> pure m'
+      [] -> panic "loadDDLVM" ["no modules in program"]
 
 saveDDLWith :: CompileConfig -> DDLText -> Maybe FilePath -> IO ()
 saveDDLWith cfg src mbfile =
