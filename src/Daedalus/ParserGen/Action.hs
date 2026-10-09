@@ -57,6 +57,8 @@ import qualified Daedalus.RTS.Input as Input
 
 import Daedalus.ParserGen.AST (CorV(..), GblFuns, NVExpr, NCExpr, showNCExpr, showName)
 
+import Daedalus.Panic (panic)
+
 type State = Int
 
 
@@ -587,7 +589,10 @@ evalVExpr gbl expr ctrl out =
         TCSelStruct e1 n _ty ->
           let ve1 = eval env e1
           in case ve1 of
-               Interp.VStruct lst -> snd $ head $ filter (\ (a,_) -> a == n) lst
+               Interp.VStruct lst ->
+                case filter (\ (a,_) -> a == n) lst of
+                  (_,v) : _ -> v
+                  [] -> panic "evalVExpr" ["invalid field selection"]
                _ -> error "SEl must be on Struct"
         TCIf e1 e2 e3 ->
           case eval env e1 of
@@ -974,7 +979,10 @@ applyControlAction gbl (ctrl, out) act =
             Interp.VArray arr ->
               if Vector.null arr
               then Nothing
-              else case head out of
+              else
+                case out of
+                  [] -> panic "applyControlAction" ["no semantic data"]
+                  o : _ -> case o of
                      SEVal b ->
                        let forfrm = ForFrm
                              { forResultName = n1
@@ -1044,7 +1052,10 @@ applyControlAction gbl (ctrl, out) act =
               -- trace ("SIZE of arr: " ++ show (length arr)) $
               if Vector.null arr
               then Nothing
-              else case head out of
+              else
+                case out of
+                  [] -> panic "applyControlAction" ["no semantic data"]
+                  o : _ -> case o of
                      SEVal b ->
                        case ev1 of
                          Interp.VArray v ->
@@ -1156,8 +1167,15 @@ applySemanticAction gbl (ctrl, out) act =
                     show mname ++ "\nOUT:\n" ++ show out ++ "\nCTRL:\n" ++ show ctrl)
       )
     EvalPure e -> Just (SEVal (evalVExpr gbl e ctrl out) : out)
-    ReturnBind e -> Just (SEVal (evalVExpr gbl e ctrl out) : tail out)
-    ReturnLast -> Just (head out : tail (tail out))
+    ReturnBind e ->
+      case out of
+        [] -> panic "applySemanticAction" ["no semantic data"]
+        _ : os -> Just (SEVal (evalVExpr gbl e ctrl out) : os)
+    ReturnLast ->
+      case out of
+        [] -> panic "applySemanticAction" ["no semantic data"]
+        [_] -> panic "applySemanticAction" ["insufficient semantic data"]
+        o : _ : os -> Just (o : os)
     DropOneOut ->
       case out of
         [] -> error "Should not Happen: drop on empty sem stack"
@@ -1208,7 +1226,10 @@ applyAction gbl (inp, ctrl, out) q2 act =
     CAct a     -> case a of
                     Pop ->
                       case ctrl of
-                        CallFrame _ q' _ savedOut : rest -> Just (inp, rest, head out : savedOut, q')
+                        CallFrame _ q' _ savedOut : rest ->
+                          case out of
+                            o : _ -> Just (inp, rest, o : savedOut, q')
+                            _ -> panic "applyAction" ["no semantic data"]
                         _ -> error "broken invariant of Pop"
                     _ ->
                       case applyControlAction gbl (ctrl, out) a of
