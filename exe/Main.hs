@@ -393,6 +393,7 @@ generateRust opts mm =
                 rtsPath = if optSaveRTS opts
                            then "rts-rust"
                            else fromMaybe "../rts-rust" (optRTSPath opts)
+                gluefactoryPath = fromMaybe "../gluefactory" (optGluefactoryPath opts)
                 rtsFeatures
                   | optErrorStacks opts = ["detailed-errors"::String]
                   | otherwise = []
@@ -407,13 +408,16 @@ generateRust opts mm =
                 "",
                 "[dependencies]",
                 "daedalus-rts-rust = { path = " ++ show rtsPath ++ ", features = " ++ show rtsFeatures ++ " }",
-                "serde = { version = \"1.0\" }"
+                "gluefactory = { path = " ++ show gluefactoryPath ++ " }",
+                "serde = { version = \"1.0\" }",
+                "",
+                "[lib]",
+                "crate-type = [\"cdylib\", \"staticlib\"]"
               ]
             createDirectoryIfMissing True src
             writeFile (src </> "lib.rs") rust
 
-
-            when (isNothing (optUserState opts)) $
+            when ((isNothing (optUserState opts)) && (isNothing (optGluefactoryPath opts))) $
               do
                 let (entryModule, entryName) = driverEntry
                     entryPath =

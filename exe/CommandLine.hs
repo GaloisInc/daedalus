@@ -92,6 +92,8 @@ data Options =
 
           , optRTSPath :: Maybe FilePath
             -- ^ Path to the RTS (runtime system)
+          , optGluefactoryPath :: Maybe FilePath
+            -- ^ Path to the gluefactory (C compatability layer)
 
           , optParams :: [String]
           } deriving Show
@@ -138,6 +140,7 @@ defaultOptions =
           , optModulePath = []
           , optDetailedErrors = Nothing
           , optRTSPath = Nothing
+          , optGluefactoryPath = Nothing
           , optUseLazyStream = False
           , optVM_do_mm = True
           , optSaveRTS = False
@@ -449,6 +452,10 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
       , Option [] ["user-fun"]
         "Define external functions by calling QUAL::function"
         $ ReqArg "QUAL" \s o -> Right o { optUserFun = Just s }
+
+      , Option [] ["glue-path"]
+        "Path to the gluefactory crate"
+        $ ReqArg "PATH" \s o -> Right o { optGluefactoryPath = Just s }
 
       , Option [] ["extern"]
         "Use types from MODULE under the Rust path ROOT::MODULE."
