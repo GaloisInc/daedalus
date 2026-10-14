@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Daedalus.Interp.DebugAnnot where
 
 import Data.Text(Text)
