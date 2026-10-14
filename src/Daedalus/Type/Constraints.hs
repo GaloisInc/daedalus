@@ -18,7 +18,7 @@ import Daedalus.Type.Subst
 
 
 data CtrStatus = Solved | Unsolved
-  deriving Show
+  deriving (Eq, Show)
 
 isImpliedBy ::
   STCMonad m => Located Constraint -> Located Constraint -> m Bool
@@ -26,10 +26,12 @@ cNew `isImpliedBy` cOld =
   case (thingValue cNew, thingValue cOld) of
     (Integral x, Integral y) | x == y -> pure True
     (Arith x, Arith y) | x == y -> pure True
+    (MapKey x, MapKey y) | x == y -> pure True
 
 
     (Arith x, Integral y) | x == y -> pure True
     (Arith x, FloatingType y) | x == y -> pure True
+    (MapKey x, Integral y) | x == y -> pure True
 
     (HasStruct x1 l1 t1, HasStruct x2 l2 t2)
       | x1 == x2 && l1 == l2 ->
@@ -216,6 +218,58 @@ isFloatingType r ty =
     TVar _       -> pure Unsolved
     _            -> reportDetailedError r "Not a floating point type."
                           [ "Type:" <+> pp ty ]
+
+isMapKey :: (STCMonad m, HasRange r) => r -> Type -> m CtrStatus
+isMapKey r = go Set.empty
+  where
+  go seen ty =
+    case ty of
+      TVar {} -> pure Unsolved
+      TCon tc ts
+        | Set.member (tc, ts) seen -> pure Solved
+        | otherwise ->
+          do mb <- lookupTypeDefMaybe tc
+             case mb of
+               Nothing -> pure Unsolved
+               Just td
+                 | Just {} <- tctyBD td -> pure Solved
+                 | otherwise ->
+                   do let su = Map.fromList (zip (tctyParams td) ts)
+                          inst t = fromMaybe t (apSubstT' su t)
+                          fields =
+                            case tctyDef td of
+                              TCTyStruct _ fs -> map (inst . snd) fs
+                              TCTyUnion fs -> [ inst t | (_, (t, _)) <- fs ]
+                      statuses <- mapM (go (Set.insert (tc, ts) seen)) fields
+                      pure if all (== Solved) statuses then Solved else Unsolved
+      Type tty ->
+        case tty of
+          TFloat       -> bad ty
+          TDouble      -> bad ty
+          TArray t     -> go seen t
+          TTuple ts    -> combine seen ts
+          TMaybe t     -> go seen t
+          TMap k v     -> combine seen [k,v]
+          TBuilder t   -> go seen t
+          TStream      -> pure Solved
+          TUInt {}     -> pure Solved
+          TSInt {}     -> pure Solved
+          TInteger     -> pure Solved
+          TBool        -> pure Solved
+          TUnit        -> pure Solved
+          TGrammar {}  -> bad ty
+          TFun {}      -> bad ty
+          TByteClass   -> bad ty
+          TNum {}      -> bad ty
+
+  combine seen ts =
+    do statuses <- mapM (go seen) ts
+       pure if all (== Solved) statuses then Solved else Unsolved
+
+  bad ty = reportDetailedError r "Type cannot be used as a map key"
+             [ "Type:" <+> pp ty
+             , "Map keys cannot contain float or double values."
+             ]
 
 
 
@@ -657,6 +711,7 @@ solveConstraint lctr =
   case thingValue lctr of
     Integral t         -> isIntegral lctr t
     Arith t            -> isArith lctr t
+    MapKey t           -> isMapKey lctr t
     FloatingType t     -> isFloatingType lctr t
     HasStruct t l fty  -> hasStruct lctr t l fty
     HasTuple t i fty   -> hasTuple lctr t i fty

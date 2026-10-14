@@ -184,6 +184,7 @@ instance TraverseTypes Constraint where
     case constraint of
       Integral t        -> Integral <$> f t
       Arith t           -> Arith <$> f t
+      MapKey t          -> MapKey <$> f t
       FloatingType t    -> FloatingType <$> f t
       HasStruct t1 l t2 -> HasStruct <$> f t1 <*> pure l <*> f t2
       HasTuple t1 i t2  -> HasTuple <$> f t1 <*> pure i <*> f t2

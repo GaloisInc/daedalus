@@ -4,6 +4,9 @@ import Control.Exception
 import Data.Text qualified as Text
 import Data.List(groupBy)
 import Data.Map(Map)
+import Data.Map qualified as Map
+import Data.Set(Set)
+import Data.Set qualified as Set
 
 import Daedalus.Panic(panic)
 import Daedalus.PP
@@ -130,7 +133,9 @@ compileTDecl td
 
       
   where
-  der = ["Clone","PartialEq","Eq","PartialOrd","Ord"]
+  der =
+    [ "Clone", "PartialEq", "PartialOrd" ] ++
+    if supportsEqOrd td then [ "Eq", "Ord" ] else []
   unionDer =
     case Core.tDef td of
       Core.TUnion fs
@@ -150,6 +155,45 @@ compileTDecl td
   gen = Rust.mkGenerics (map Rust.tyParam as) Rust.noWhereClause
   tyDecl how =
     Rust.macDecl (Rust.mac (Rust.simplePath' [ddlModName,how]) (Rust.tyToken (tyForm False)))
+
+-- | Check whether a generated Rust type may lawfully derive `Eq` and `Ord`.
+-- Type parameters are accepted: Rust's derive machinery adds the necessary
+-- bounds to the generated implementations. Concrete float and double
+-- components, including ones hidden behind user types, rule out the derives.
+supportsEqOrd :: TyCtx => Core.TDecl -> Bool
+supportsEqOrd = supportsDef Set.empty . Core.tDef
+
+supportsDef :: TyCtx => Set Core.UserType -> Core.TDef -> Bool
+supportsDef seen def =
+  case def of
+    Core.TStruct fs   -> all (supportsType seen . snd) fs
+    Core.TUnion fs    -> all (supportsType seen . snd) fs
+    Core.TBitdata {}  -> True
+
+supportsType :: TyCtx => Set Core.UserType -> Core.Type -> Bool
+supportsType seen ty =
+  case ty of
+    Core.TStream       -> True
+    Core.TUInt {}      -> True
+    Core.TSInt {}      -> True
+    Core.TInteger      -> True
+    Core.TBool         -> True
+    Core.TFloat        -> False
+    Core.TDouble       -> False
+    Core.TUnit         -> True
+    Core.TTuple ts     -> all (supportsType seen) ts
+    Core.TArray t      -> supportsType seen t
+    Core.TMaybe t      -> supportsType seen t
+    Core.TMap k v      -> supportsType seen k && supportsType seen v
+    Core.TBuilder t    -> supportsType seen t
+    Core.TIterator {}  -> False
+    Core.TParam {}     -> True
+    Core.TUser ut
+      | Set.member ut seen -> True
+      | otherwise ->
+        case Map.lookup (Core.utName ut) ?tyDecls of
+          Nothing -> True
+          Just td -> supportsDef (Set.insert ut seen) (Core.tyDeclsInst td ut)
 
 bdCase :: TyCtx => BDD.Pat -> [(Core.Type, a)] -> [(Integer, [(Integer, a)])]
 bdCase univ cases =

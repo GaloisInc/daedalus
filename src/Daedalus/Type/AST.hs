@@ -61,6 +61,7 @@ data Poly a     = Poly [TVar] [Constraint] a
 
 data Constraint = Integral Type
                 | Arith Type
+                | MapKey Type
                 | HasStruct Type Label Type
                 | HasTuple Type Integer Type
                 | HasUnion  Type Label Type
@@ -124,7 +125,7 @@ data Lossy = Lossy | NotLossy | Dynamic
 data Type       = Type (TypeF Type)
                 | TCon TCTyName [Type]
                 | TVar !TVar
-                  deriving (Eq,Show,TH.Lift)
+                  deriving (Eq,Ord,Show,TH.Lift)
 
 data TVar       = TV { tvarId    :: !Int
                      , tvarKind  :: !Kind
@@ -782,6 +783,7 @@ instance PP Constraint where
     case c of
       Integral x -> wrapIf (n > 0) ("Integral" <+> ppPrec 2 x)
       Arith x    -> wrapIf (n > 0) ("Arith" <+> ppPrec 2 x)
+      MapKey x   -> wrapIf (n > 0) ("MapKey" <+> ppPrec 2 x)
       HasStruct x l t -> wrapIf (n > 0) ("HasStruct" <+> pp x <+> pp l <+> pp t)
       HasTuple x i t -> wrapIf (n > 0) ("HasTuple" <+> pp x <+> pp i <+> pp t)
 

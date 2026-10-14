@@ -93,6 +93,7 @@ instance ApSubst Constraint where
     case ctr of
       Integral t        -> Integral <$> apSubstT' su t
       Arith t           -> Arith <$> apSubstT' su t
+      MapKey t          -> MapKey <$> apSubstT' su t
       FloatingType t    -> FloatingType <$> apSubstT' su t
       HasStruct t1 l t2 -> do ~[a,b] <- someJusts (apSubstT' su) [t1,t2]
                               pure (HasStruct a l b)
@@ -275,6 +276,7 @@ instance FreeTVS Constraint where
     case c of
       Integral t        -> freeTVS t
       Arith t           -> freeTVS t
+      MapKey t          -> freeTVS t
       FloatingType t    -> freeTVS t
       HasStruct t1 _ t2 -> freeTVS t1 <> freeTVS t2
       HasTuple t1 _ t2  -> freeTVS t1 <> freeTVS t2

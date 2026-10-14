@@ -439,7 +439,7 @@ data TypeF t =
   | TMaybe !t
   | TBuilder !t
   | TMap   !t !t
-    deriving (Eq,Show,Functor,Foldable,Traversable,TH.Lift)
+    deriving (Eq,Ord,Show,Functor,Foldable,Traversable,TH.Lift)
 
 data SrcType = SrcVar (Located Text)
              | SrcCon Name [SrcType]
