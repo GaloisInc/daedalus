@@ -202,6 +202,7 @@ hsConstraint env ctr =
     StructCon {}    -> panic "hsConstraint" ["Unexpected StructCon"]
     UnionCon {}     -> panic "hsConstraint" ["Unexpected UnionCon"]
     IsNamed {}      -> panic "hsConstraint" ["Unexpected IsNamed"]
+    HasTuple {}     -> panic "hsConstraint" ["Unexpected HasTuple"]
 
 hsRuleType :: Env -> RuleType -> Term
 hsRuleType env ((as,bs) :-> y) = foldr fun (hsType env y) (map snd as ++ bs)
