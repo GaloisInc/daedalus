@@ -259,9 +259,9 @@ _showDebugSlkControlData ctrl =
     SWildcard -> [ "*" ]
     SCons (SlkCallFrame name _q (SlkActivatedFrame m) sem) rest ->
       _showDebugSlkControlData rest ++
-      [ PAST.showName name ++ " " ++
+      [ showQuotedName name ++ " " ++
         concat (_showDebugSlkSemanticData sem) ++ " " ++
-        concat [ Map.foldrWithKey (\ k v a -> "(" ++ PAST.showName k ++ "," ++ show v ++ ")," ++ a) "" m ]
+        concat [ Map.foldrWithKey (\ k v a -> "(" ++ showQuotedName k ++ "," ++ show v ++ ")," ++ a) "" m ]
       ]
     SCons (SlkManyFrame b _) rest ->
       _showDebugSlkControlData rest ++
@@ -270,6 +270,8 @@ _showDebugSlkControlData ctrl =
       _showDebugSlkControlData rest ++
       [ "SOMETHING ELSE " ]
     SEmpty ->  []
+  where
+    showQuotedName name = "\"" ++ PAST.showName name ++ "\""
 
 
 
@@ -290,11 +292,13 @@ _showDebugSlkSemanticData ctrl =
           _showDebugSlkSemanticData rest ++ ["*"]
         SConcrete m ->
           _showDebugSlkSemanticData rest ++
-          [ Map.foldrWithKey (\ k v a -> "(" ++ PAST.showName k ++ "," ++ show v ++ ")," ++ a) "" m
+          [ Map.foldrWithKey (\ k v a -> "(" ++ showQuotedName k ++ "," ++ show v ++ ")," ++ a) "" m
           ]
     SCons _ rest ->
       _showDebugSlkSemanticData rest
     SEmpty ->  []
+  where
+    showQuotedName name = "\"" ++ PAST.showName name ++ "\""
 
 
 data SlkInput =

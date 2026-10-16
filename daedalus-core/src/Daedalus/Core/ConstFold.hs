@@ -212,6 +212,8 @@ valueToExpr tenv ty v =
       -- FIXME: assumes we start at 0 and are in order
       | TIterator (TArray ty') <- ty   -> newIterator (arrayL ty' $ map (go ty' . snd) vs)
     VIterator {} -> panic "Malfomed iterator value/type" [showPP v, showPP ty]
+    VBDStruct {} -> panic "valueToExpr" ["unsupported: VBDStruct"]
+    VBDUnion {} -> panic "valueToExpr" ["unsupported: VBDUnion"]
   where
     go = valueToExpr tenv
     fromMapEls kt vt = foldl' (\m (k, v') -> mapInsert m (go kt k) (go vt v')) (mapEmpty kt vt)

@@ -16,6 +16,7 @@ import Data.Graph.SCC(stronglyConnComp)
 import Data.Maybe(maybeToList)
 import Data.Map(Map)
 import qualified Data.Map as Map
+import qualified Data.List.NonEmpty as NE
 import Data.Map.Merge.Lazy (preserveMissing, zipWithAMatched, mergeA)
 import Control.Exception(Exception(..))
 
@@ -28,6 +29,7 @@ import Daedalus.Rec
 
 import Daedalus.AST
 import Daedalus.PrettyError
+import Daedalus.Panic (panic)
 import Daedalus.Pass
 
 -- -----------------------------------------------------------------------------
@@ -457,17 +459,20 @@ resolveCasePatterns :: ResolveNames e => PatternCase e -> ScopeM (PatternCase e)
 resolveCasePatterns patC =
   case patC of
     PatternDefault e -> PatternDefault <$> resolve e
-    PatternCase ps e
+    PatternCase [] _ ->
+      panic "resolveCasePatterns" ["no patterns"]
+    PatternCase (pc:pcs) e
       | all (== bound) otherBound -> do
-          (ps', newVss) <- unzip <$> mapM localise ps
-          PatternCase ps' <$> extendLocalScopeIn (head newVss) (resolve e)
+          (ps', newVss) <- NE.unzip <$> mapM localise ps
+          PatternCase (NE.toList ps') <$> extendLocalScopeIn (NE.head newVss) (resolve e)
       | otherwise ->
           ScopeM $ raise
                  $ DifferentCaseVars -- (currentModule scope)
                  $ bound : otherBound
 
       where
-      bound : otherBound = map patVars ps
+      ps = pc NE.:| pcs
+      bound NE.:| otherBound = NE.map patVars ps
 
       localise :: Pattern -> ScopeM (Pattern, [Name])
       localise pat =

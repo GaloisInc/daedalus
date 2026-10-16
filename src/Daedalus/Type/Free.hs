@@ -17,6 +17,7 @@ import Data.Parameterized.Some
 
 import Daedalus.Rec(sccToRec)
 
+import Daedalus.Panic (panic)
 import Daedalus.Type.AST
 import Daedalus.Type.Traverse
 
@@ -108,7 +109,9 @@ instance TCFree (TCF a k) where
       TCCase e pats mdef ->
         Set.unions (tcFree e : tcFree mdef : map doAlt (NE.toList pats))
         where
-          doAlt (TCAlt ps rhs) = foldr forgetFree (tcFree rhs) (patBinds (head ps))
+          doAlt (TCAlt ps rhs) = case ps of
+            [] -> panic "tcFree@(TCF a k)" ["empty patterns in TCAlt"]
+            (p:_) -> foldr forgetFree (tcFree rhs) (patBinds p)
 
       e  -> foldMapTCF tcFree e
 

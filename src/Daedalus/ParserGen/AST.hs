@@ -4,6 +4,7 @@ module Daedalus.ParserGen.AST where
 import Numeric (showHex)
 import qualified Data.Map as Map
 import Data.Text(Text)
+import qualified Data.Text as Text
 
 import Daedalus.PP
 import Daedalus.Type.AST hiding (ppBinder)
@@ -22,9 +23,9 @@ showName :: Name -> String
 showName n =
   showName1 (nameScopedIdent n)
   where
-    showName1 ((ModScope _ x)) = show x
-    showName1 ((Unknown x)) = show x
-    showName1 ((Local x)) = show x
+    showName1 ((ModScope _ x)) = Text.unpack x
+    showName1 ((Unknown x)) = Text.unpack x
+    showName1 ((Local x)) = Text.unpack x
 
 
 type Contx = Name

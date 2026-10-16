@@ -86,13 +86,13 @@ missingBoolPatterns _declTys allPats
 missingNumPatterns :: Map TCTyName TCTyDecl -> [TCPat] ->
                       (PatternCompleteness, CaseSummary)
 missingNumPatterns _declTys allPats
-  | Just n <- tySize (head typs)
+  | Just n <- tySize numTy
   , caseCount < n    = (Incomplete, summary)
   -- Can't figure out a finite size
-  | Nothing <- tySize (head typs) = (Incomplete, summary)
+  | Nothing <- tySize numTy = (Incomplete, summary)
   | otherwise        = (Complete, summary)
   where
-    summary = NumberCase (head typs) caseNums
+    summary = NumberCase numTy caseNums
     caseCount = Set.size (Set.fromList caseNums)
  
     tySize :: Type -> Maybe Int
@@ -104,6 +104,9 @@ missingNumPatterns _declTys allPats
         _                            -> Nothing
       
     (typs, caseNums) = unzip $ map extractLbl allPats
+    numTy = case typs of
+      [] -> panic "missingNumPatterns" ["no numeric patterns"]
+      (t:_) -> t
     extractLbl (TCNumPat typ n _) = (typ, n)
     extractLbl pat = panic "Saw a non-constructor pattern" [show (pp pat)]
 
@@ -124,7 +127,10 @@ summariseCase declTys tc =
         upd x | isNothing m_def = x
               | otherwise       = (Complete, snd x)
         allPats = concatMap tcAltPatterns alts
-        firstPat = head (tcAltPatterns (NE.head alts))
+        firstPat =
+          case tcAltPatterns (NE.head alts) of
+            [] -> panic "summariseCase" ["empty tcAltPatterns"]
+            (p:_) -> p
         
     _ -> panic "Expected a TCCase" [show (pp tc)]
         

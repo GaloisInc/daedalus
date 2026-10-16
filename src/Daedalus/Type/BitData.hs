@@ -180,8 +180,11 @@ inferBitData bd = runSTypeM . runTypeM (P.bdName bd) $ do
   case P.bdBody bd of
 
     P.BitDataStruct fields ->
-      do d <- inferStruct (P.bdName bd) width
-                          (P.bdName bd, fields) (head m_sz_tyss)
+      do let m_sz_tys = case m_sz_tyss of
+              [] -> panic "inferBitData" ["no field sizes for BitDataStruct"]
+              (x:_) -> x
+         d <- inferStruct (P.bdName bd) width
+                          (P.bdName bd, fields) m_sz_tys
          pure (Map.singleton (tctyName d) d)
 
     P.BitDataUnion cons ->

@@ -1,4 +1,7 @@
 {-# Language OverloadedLabels, QuasiQuotes #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Daedalus.Compile.Config where
 
 import Data.Map(Map)
