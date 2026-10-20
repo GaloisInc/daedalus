@@ -174,15 +174,15 @@ orderFuns noI ins = comps ins
   node a = case deps a of
              (x,xs) -> (a,x,Set.toList xs)
 
-  breakLoop els
-    | null els = []
-    | otherwise =
-    let isNoI fu     = fName fu `Set.member` noI
-        isSelfRec fu = fName fu `Set.member` callersOf (fName fu)
-    in case (partition isNoI els, partition isSelfRec els) of
-         ((b : more,other),_)   -> orderFuns noI (more++other) ++ [MutRec [b]]
-         (_, (b : more,other)) -> orderFuns noI (more++other) ++ [MutRec [b]]
-         _ -> orderFuns noI (tail els) ++ [MutRec [head els]]
+  breakLoop els = case els of
+    [] -> []
+    (e:es) ->
+      let isNoI fu     = fName fu `Set.member` noI
+          isSelfRec fu = fName fu `Set.member` callersOf (fName fu)
+      in case (partition isNoI els, partition isSelfRec els) of
+          ((b : more,other),_)   -> orderFuns noI (more++other) ++ [MutRec [b]]
+          (_, (b : more,other)) -> orderFuns noI (more++other) ++ [MutRec [b]]
+          _ -> orderFuns noI es ++ [MutRec [e]]
 
 
 -- we can also inline a recursive function that only tail calls itself

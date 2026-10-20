@@ -6,7 +6,8 @@ import GHC.Generics (Generic)
 import Control.DeepSeq (NFData)
 import Daedalus.Panic(panic)
 import Data.Bits(testBit)
-import Data.List(groupBy,sortBy)
+import Data.List(sortBy)
+import qualified Data.List.NonEmpty as NE
 import qualified Daedalus.TH as TH
 
 -- Ordered binary decision diagrams --------------------------------------------
@@ -215,12 +216,12 @@ groupTestsByMask xs =
 
 -- | Assumes the order of the tests is important.
 groupTestsByMask' :: [(PatTest,a)] -> [(Integer, [(Integer, a)])]
-groupTestsByMask' = map rearrange . groupBy sameMask
+groupTestsByMask' = map rearrange . NE.groupBy sameMask
   where
   sameMask (s,_) (t,_) = patMask s == patMask t
   cmpVal (s,_) (t,_)   = compare s t
-  rearrange xs         = ( patMask (fst (head xs))
-                         , sortBy cmpVal [ (patValue t, a) | (t,a) <- xs ]
+  rearrange xs         = ( patMask (fst (NE.head xs))
+                         , sortBy cmpVal [ (patValue t, a) | (t,a) <- NE.toList xs ]
                          )
 
 noTest :: Width -> PatTest

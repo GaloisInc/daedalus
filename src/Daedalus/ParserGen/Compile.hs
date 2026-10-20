@@ -18,6 +18,7 @@ import qualified Control.Monad.State as ST
 import Daedalus.Type.AST
 import Daedalus.Type.Traverse
 
+import Daedalus.Panic (panic)
 import qualified Daedalus.ParserGen.AST as PAST
 import Daedalus.ParserGen.Action
 import Daedalus.ParserGen.Aut
@@ -256,6 +257,9 @@ allocGExpr n ctx gexpr =
                       , loopType = loopType lp
                       }
               in allocate (TCFor forContent) n1 5
+
+            LoopMany {} ->
+              panic "allocGExpr" ["unimplemented: LoopMany-flavored TCFor"]
         TCCall name [] le ->
           let ale = map subArg le
           in allocate (TCCall name [] ale) n 2
@@ -735,6 +739,8 @@ genGExpr gbl e =
                 , (n4, UniChoice (BAct (CutBiasAlt infoN), n5))
                 ]
           in mkAutWithPop n1 (unionTr trans t1) n5 pops
+        LoopMany {} ->
+          panic "genGExpr" ["unimplemented: LoopMany-flavored TCFor"]
     TCCall name _ le ->
       let nname = tcName name
           (_, annot) =

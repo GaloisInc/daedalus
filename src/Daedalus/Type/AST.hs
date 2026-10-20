@@ -45,6 +45,7 @@ import Daedalus.AST as LocalAST
         , Located(..), ScopedIdent(..), Value, Grammar, Class, Literal(..))
 
 import Daedalus.PP
+import Daedalus.Panic (panic)
 
 type HS = HS.Type
 
@@ -448,10 +449,10 @@ instance PP a => PP (TC a k) where
 
 ppAnnot :: PP a => TC a k -> Doc
 ppAnnot e
-  | enable = "--" <+> pp (texprAnnot e)
+  | enable () = "--" <+> pp (texprAnnot e)
   | otherwise = empty
   where
-  enable = False
+  enable _ = False
 
 instance PP a => PP (Loop a k) where
   ppPrec n lp = wrapIf (n > 0) $
@@ -1164,7 +1165,10 @@ patBindsSet :: TCPat -> Set (TCName Value)
 patBindsSet = Set.fromList . patBinds
 
 altBinds :: TCAlt a k -> [TCName Value]
-altBinds (TCAlt ps _) = patBinds (head ps)
+altBinds (TCAlt ps _) =
+  case ps of
+    (p:_) -> patBinds p
+    _ -> panic "altBinds" ["empty TCAlt patterns"]
 
 
 

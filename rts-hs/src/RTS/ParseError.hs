@@ -17,6 +17,7 @@ import Daedalus.RTS.HasInputs
 import Daedalus.RTS.InputTrace
 import Daedalus.RTS.Input
 import Daedalus.RTS.JSON
+import Daedalus.SourceRange (HasSourcePaths(..))
 
 data ParseErrorG e =
   PE { peInput   :: !Input
@@ -59,11 +60,6 @@ data SourceRange = SourceRange
 data SourcePos = SourcePos { srcLine, srcCol :: Int, srcName :: String }
   deriving (Show,Eq,Ord)
 
-
-class HasSourcePaths a where
-  getSourcePaths :: a -> Set FilePath
-  mapSourcePaths :: (FilePath -> FilePath) -> a -> a
-
 instance HasSourcePaths SourcePos where
   getSourcePaths x   = Set.singleton (srcName x)
   mapSourcePaths f x = x { srcName = f (srcName x) }
@@ -73,18 +69,6 @@ instance HasSourcePaths SourceRange where
   mapSourcePaths f x = SourceRange { srcFrom = mapSourcePaths f (srcFrom x)
                                    , srcTo   = mapSourcePaths f (srcTo x)
                                    }
-
-instance (HasSourcePaths a, HasSourcePaths b) => HasSourcePaths (a,b) where
-  getSourcePaths (a,b) = Set.union (getSourcePaths a) (getSourcePaths b)
-  mapSourcePaths f (a,b) = (mapSourcePaths f a, mapSourcePaths f b)
-
-instance HasSourcePaths a => HasSourcePaths [a] where
-  getSourcePaths   = Set.unions . map getSourcePaths
-  mapSourcePaths f = fmap (mapSourcePaths f)
-
-instance HasSourcePaths a => HasSourcePaths (Maybe a) where
-  getSourcePaths   = maybe Set.empty getSourcePaths
-  mapSourcePaths f = fmap (mapSourcePaths f)
 
 instance HasSourcePaths e => HasSourcePaths (ParseErrorG e) where
   getSourcePaths err = getSourcePaths (peStack err, (peGrammar err, peMore err))

@@ -1,4 +1,7 @@
 {-# Language ScopedTypeVariables, FlexibleInstances, MultiParamTypeClasses #-}
+
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Daedalus.Value.Extract
   ( Value(..)
   , FromValue(..)

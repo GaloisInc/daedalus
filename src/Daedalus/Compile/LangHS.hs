@@ -1,9 +1,15 @@
 {-# Language RecordWildCards, OverloadedStrings #-}
 {-# Language ExistentialQuantification #-}
+{-# Language OverloadedLabels #-}
+
 module Daedalus.Compile.LangHS where
 
 import Data.String
+
+import Daedalus.Panic (panic)
 import Daedalus.PP
+import Daedalus.Value (unTrace)
+import Daedalus.Value.Extract
 
 data Module = Module
   { hsModName  :: String
@@ -212,4 +218,22 @@ instance PP Module where
 instance PP SigDecl where
   pp Sig { .. } = hang (commas (map pp sigName) <+> "::") 2 (pp sigType)
 
+--------------------------------------------------------------------------------
 
+funArg :: Value -> Term
+funArg val =
+  case unTrace val of
+    VUnionElem "TArg" v -> TyParam (Raw (fromValue v :: String))
+    VUnionElem "Arg"  v -> fromValue v
+    _                   -> panic "funArg" ["Invalid funArg"]
+
+instance FromValue Term where
+  fromValue v = aps (Var (#fun v)) (map funArg (#args v))
+
+instance FromValue Import where
+  fromValue v = Import (#module v) (#qualifier v)
+
+instance FromValue ImportQualifier where
+  fromValue v = case fromValue v of
+                  Nothing -> Unqualified
+                  Just a  -> QualifyAs a

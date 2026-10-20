@@ -533,7 +533,10 @@ noSemAltWith ::
   TCAlt SourceRange Grammar -> NoFunM (TCAlt SourceRange Grammar, Info)
 noSemAltWith f (TCAlt ps e) =
   do (e1,vs) <- f e
-     let bound = Set.map Some (patBindsSet (head ps))
+     let p = case ps of
+          [] -> panic "noSemAltWith" ["empty patterns in TCAlt"]
+          (pat:_) -> pat
+     let bound = Set.map Some (patBindsSet p)
      pure (TCAlt ps e1, Set.difference vs bound)
 
 noSemUni ::
