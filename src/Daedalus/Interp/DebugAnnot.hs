@@ -12,11 +12,11 @@ import Daedalus.RTS.JSON
 import Daedalus.RTS.Input
 import RTS.ParseError
 
-import qualified Daedalus.SourceRange as Src
+import Daedalus.SourceRange (HasSourcePaths(..))
 import Daedalus.PP
 
 import Daedalus.Value(Value,valueToDoc)
-import Daedalus.AST(Name,nameRange)
+import Daedalus.AST(Name)
 
 data DebugAnnot = TextAnnot Text
                 | CallAnnot CallSite
@@ -45,22 +45,6 @@ instance HasInputs DebugAnnot where
 
 instance HasInputs CallSite where
   getInputs (CallSite _ _ i) = Map.singleton (inputName i) (inputTopBytes i)
-
-instance HasSourcePaths Src.SourceRange where
-  getSourcePaths x = getSourcePaths (Src.sourceFrom x, Src.sourceTo x)
-  mapSourcePaths f x =
-    Src.SourceRange { sourceFrom = mapSourcePaths f (Src.sourceFrom x)
-                    , sourceTo   = mapSourcePaths f (Src.sourceTo x)
-                    }
-
-instance HasSourcePaths Src.SourcePos where
-  getSourcePaths x = Set.singleton (Text.unpack (Src.sourceFile x))
-  mapSourcePaths f x =
-    x { Src.sourceFile = Text.pack (f (Text.unpack (Src.sourceFile x))) }
-
-instance HasSourcePaths Name where
-  getSourcePaths = getSourcePaths . nameRange
-  mapSourcePaths f x = x { nameRange = mapSourcePaths f (nameRange x) }
 
 instance HasSourcePaths DebugAnnot where
   getSourcePaths ann =

@@ -7,6 +7,7 @@ import Data.List.NonEmpty(NonEmpty(..))
 
 import Daedalus.RTS.Input
 import Daedalus.RTS.InputTrace
+import Daedalus.SourceRange (HasSourcePaths)
 import RTS.ParseError
 import RTS.ParserAPI
 

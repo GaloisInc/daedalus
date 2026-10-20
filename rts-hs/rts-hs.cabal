@@ -23,6 +23,7 @@ library
                        RTS.ParseError,
                        RTS.Annot
   build-depends:       base >=4.13,
+                       daedalus-utils,
                        rts-hs-data,
                        vector,
                        vector-builder,
