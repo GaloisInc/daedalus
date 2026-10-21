@@ -31,6 +31,7 @@ import Language.Rust.Parser qualified as RustParser
 
 data Config = Config
   { cfgUserState :: Maybe String
+  , cfgGenCBindings :: Bool
   , cfgExtraImports :: [String]
   , cfgUserFun :: Maybe String
   , cfgExternal :: Map Text.Text String
@@ -75,7 +76,7 @@ compileProgram cfg vm = show (Rust.pretty' result)
             ]
     in
     Rust.SourceFile Nothing []
-      [ compileGeneratedModule uses name code
+      [ compileGeneratedModule (cfgGenCBindings cfg) uses name code
       | (name, code) <- collectModules ?externalTypes vm
       ]
 
@@ -84,11 +85,13 @@ compileProgram cfg vm = show (Rust.pretty' result)
     [ Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl"))
     , Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ])
     , Rust.use' unusedOk (Rust.useOne (Rust.simplePath "serde") Nothing)
+    ]
+    ++ (if (cfgGenCBindings cfg) then
     -- C/rust glue imports
-    , Rust.use' unusedOk (Rust.useOne (Rust.simplePath' ["std","slice"]) Nothing)
+    [ Rust.use' unusedOk (Rust.useOne (Rust.simplePath' ["std","slice"]) Nothing)
     , Rust.use' unusedOk (Rust.useSelect (Rust.simplePath' ["std", "os", "raw"]) [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "c_char", "c_int" ] ])
     , Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "gluefactory") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Accessors","Variants","make_parser_main","array_accessors" ] ])
-    ] ++ map parseRustImport (cfgExtraImports cfg)
+    ] else []) ++ map parseRustImport (cfgExtraImports cfg)
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
 
   sigsOfMod s m = foldl' sigsOfFun s (VM.moduleFuns m)
@@ -156,26 +159,31 @@ funGroupModule group =
 
 compileGeneratedModule ::
   ProgCtx =>
+  Bool -> 
   [Rust.Item ()] ->
   Core.MName ->
   ModuleCode ->
   Rust.Item ()
-compileGeneratedModule uses name code =
+compileGeneratedModule cBindings uses name code =
+  let ?cBindings = cBindings in
   Rust.mkMod
     [Rust.disableWarning "nonstandard_style"]
     Rust.PublicV
     (compileMName name)
     (uses ++
-     ffiError ++
-     setFfiError ++
-     parserMainMacro ++
-     compileBuiltinSpecializations name (moduleTypes code) ++
+     (if cBindings then
+       ffiError ++
+       setFfiError ++
+       parserMainMacro ++
+       builtinAccessors
+      else []) ++
      concatMap (compileUserType . NonRec) (reverse (moduleTypes code)) ++
      concatMap compileFunGroup (reverse (moduleFuns code)))
  where
    ffiError = [Rust.Enum [repri32Attr] Rust.PublicV (Rust.mkIdent "FfiError") ffiFields Rust.noGenerics ()]
    parserMainMacro =
      [Rust.callMacroItem (Rust.simplePath "make_parser_main") mainParserArgs | Core.mNameText name /= "Daedalus"]
+   builtinAccessors = compileBuiltinSpecializations name (moduleTypes code)
    mainParserArgs = [Rust.identExpr $ Rust.mkIdent "Main", Rust.identExpr $ Rust.mkIdent "Main"]
    repri32Attr = Rust.Attribute Rust.Inner (Rust.simplePath "repr") toks ()
    toks = Rust.Tree

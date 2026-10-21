@@ -21,6 +21,7 @@ type FnMsg = ( ?fnMsg :: Doc
              )
 type TyCtx = ( ?tyDecls :: Map Core.TName Core.TDecl
              , ?externalTypes :: ExternalTypes
+             , ?cBindings :: Bool
              )
 
 unsupported :: Doc -> a
@@ -73,7 +74,7 @@ compileBuiltinAccessors name ty =
     Core.TArray elementType -> callArrMacro elementType
     _ -> []
   where
-    callArrMacro et = 
+    callArrMacro et =
       [Rust.callMacroItem' (Rust.simplePath "array_accessors") (macroArgs et) | Core.mNameText name /= "Daedalus"]
     macroArgs et = let
       ?fnMsg = backticks (pp ty)
@@ -87,7 +88,7 @@ compileTDecl td
     let ?fnMsg = pp tn in
     case Core.tDef td of
       Core.TStruct fs ->
-        [ Rust.mkStruct (der ++ [Rust.mkIdent "Accessors"]) Rust.PublicV (nm isRec) gen
+        [ Rust.mkStruct (der ++ ["Accessors" | ?cBindings]) Rust.PublicV (nm isRec) gen
             [ (compileFieldLabel l, compileType VM.Owned t) | (l,t) <- fs ]
         , makeSerializeStruct as (nm isRec) fs
         , if isRec
@@ -98,7 +99,7 @@ compileTDecl td
               tyDecl "by_ref"
         ]
       Core.TUnion fs ->
-        [ Rust.mkEnum (unionDer ++ [Rust.mkIdent "Variants"]) Rust.PublicV (nm isRec) gen
+        [ Rust.mkEnum (unionDer ++ ["Variants" | ?cBindings]) Rust.PublicV (nm isRec) gen
             [ (compileConLabel l, [ compileType VM.Owned t | not (Core.isUnit t) ])
             | (l,t) <- fs ]
         , makeSerializeEnum as (nm isRec) fs
@@ -157,13 +158,13 @@ compileTDecl td
                     | w <= 32 = "32"
                     | otherwise = "64"
                   num n = Rust.intToken' (show n ++ "u" ++ suff)
-                  
+
               in
               [
                  Rust.mkEnum [] Rust.PublicV (nm True) Rust.noGenerics $
                   (bdJunkName, []) :
                   [ (compileConLabel l, [compileType VM.Owned t]) | (l,t) <- cons ],
-                
+
                 mac "bitdata_case" $
                   Rust.tyToken rty : Rust.identToken (nm True) :
                   [ tup (num msk :
@@ -174,10 +175,10 @@ compileTDecl td
                     ])
                   | (msk, alts) <- opts
                   ]
-                  
+
               ]
 
-      
+
   where
   der = ["Clone","PartialEq","Eq","PartialOrd","Ord"]
   unionDer =
@@ -247,7 +248,7 @@ compileType own ty =
 
     Core.TMaybe t           -> Rust.pathType (Rust.pathWithTypes [ddlModName, "Maybe"] [compileType own t])
     Core.TMap tk tv         -> maybeB "Map" "MapB" [tk,tv]
-    Core.TIterator t        -> 
+    Core.TIterator t        ->
       case t of
         Core.TArray el  -> maybeB "ArrayIterator" "ArrayIteratorB" [el]
         Core.TMap tk tv -> maybeB "MapIterator" "MapIteratorB" [tk,tv]

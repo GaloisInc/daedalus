@@ -258,6 +258,9 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
     };
 
     append_to_c_header(&format!("typedef struct {} {};", enum_name, enum_name),"parser_types.h");
+    let var_names = variants.iter().map(|v| {format!("{}_{}",enum_name, v.ident)}).collect::<Vec<String>>();
+    append_to_c_header(&format!("typedef enum {{ {} }} Var_{};", var_names.iter().rev().enumerate().map(|(idx, n)| {format!("{} = {}", n, idx)}).collect::<Vec<String>>().join(", "), enum_name),"parser_types.h");
+    
     let c_methods = variants.iter().map(|v| {
 	let name = &v.ident;
 	let checker_name = format_ident!("{}_is_{}", enum_name, name);
@@ -362,7 +365,33 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 	    #as_method
 	}
     });
-    
+
+    let var_checks = var_names.iter().rev().enumerate().map(|(idx, name)| {
+	let var_field = format_ident!("{}_{}", enum_name, name);
+	quote! {
+	    #enum_name::#name { .. } => #idx,
+	}
+    });
+    let get_var_name = format_ident!("get_{}_variant", enum_name);
+    let get_var_doc_string = format!("extern Var_{} {}({}* obj, int* error);", enum_name.to_string(), get_var_name.to_string(), enum_name.to_string());
+    append_to_c_header(&get_var_doc_string,"parser_bindings.h");
+    let var_method = quote! {
+	#[unsafe(no_mangle)]
+	pub unsafe extern "C" fn #get_var_name(obj: *const #enum_name, err: *mut c_int) -> c_int {
+	    if obj.is_null() {
+		unsafe {
+		    set_error(err, FfiError::InvalidPtr);
+		}
+		return 0;
+	    }
+	    unsafe {
+		let o = &*obj;
+		match o {
+		    #(#var_checks)*
+		}
+	    }
+        }
+    };
     let code = quote! {
 	#(#c_methods)*
     };
