@@ -29,8 +29,7 @@ def SV =
       if ?includeHeader
         then { let h = { $$ = Header; Newline}; ^ just h}
         else nothing
-    data = OneOrMoreSepBy Record Newline
-    Optional Newline
+    data = Records
 
 -- Headers
 
@@ -39,6 +38,14 @@ def Header = OneOrMoreSepBy Name ?$sep
 def Name = Field
 
 -- Data records
+
+def Records =
+  block
+    let init = many (buf = builder) (emit buf { $$ = Record; Newline })
+    let last = just { LookAhead UInt8; $$ = Record } <| nothing
+    ^ build case last of
+       just last -> emit init last
+       nothing -> init
 
 def Record = OneOrMoreSepBy Field ?$sep
 
