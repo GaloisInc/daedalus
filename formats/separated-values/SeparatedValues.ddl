@@ -25,11 +25,16 @@ import Daedalus
 
 def SV =
   block
+    Optional BOM
     header =
       if ?includeHeader
         then { let h = { $$ = Header; Newline}; ^ just h}
         else nothing
     data = Records
+
+-- UTF-8 Byte order mark (BOM)
+
+def BOM = @{ $[ 0xEF ]; $[ 0xBB ]; $[ 0xBF ] }
 
 -- Headers
 
