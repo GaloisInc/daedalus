@@ -1,9 +1,9 @@
 --- Found 1 results:
-{ header: [ "id"
-          , "description"
-          , "address"
-          , "note"
-          ]
+{ header: Just [ "id"
+               , "description"
+               , "address"
+               , "note"
+               ]
 , data: [ [ "1"
           , "Single line description."
           , "123 Main St\nApt 4B\nSpringfield, IL 62701"
