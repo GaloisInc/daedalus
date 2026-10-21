@@ -26,7 +26,7 @@ import Daedalus
 def SV =
   block
     header = { $$ = Header; Newline }
-    data = OneOrMoreSepBy (Record (length header)) Newline
+    data = OneOrMoreSepBy Record Newline
     Optional Newline
 
 -- Headers
@@ -37,7 +37,7 @@ def Name = Field
 
 -- Data records
 
-def Record n = NSepBy n Field ?$sep
+def Record = OneOrMoreSepBy Field ?$sep
 
 def Field = Escaped <| NonEscaped
 
