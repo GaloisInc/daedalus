@@ -76,8 +76,3 @@ def $textdata = (' ' | '!' | '#' .. '~') - ?$sep
 -- Parse one or more `P` separated by `Sep`, producing an array of the
 -- results.
 def OneOrMoreSepBy P Sep = ManyStart P {Sep; P}
-
--- Parse `P` `n` times, separated by `Sep`, producing an array of the
--- results.
-def NSepBy n P Sep =
-  build (for (out = emit builder P; x in rangeUp (n - 1)) (emit out { Sep; P }))
