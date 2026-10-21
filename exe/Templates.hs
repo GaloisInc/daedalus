@@ -19,6 +19,10 @@ rts_files = $(embedDir "rts-c/ddl")
 rust_rts_files :: [(FilePath,ByteString)]
 rust_rts_files = ("Cargo.toml", $(embedFile "rts-rust/Cargo.toml"))
                : [ ("src" </> x, y) | (x,y) <- $(embedDir "rts-rust/src") ]
+                 
+gluefactory_files :: [(FilePath,ByteString)]
+gluefactory_files = ("Cargo.toml", $(embedFile "gluefactory/Cargo.toml"))
+               : [ ("src" </> x, y) | (x,y) <- $(embedDir "gluefactory/src") ]
 
 hs_template_files :: [(FilePath,ByteString)]
 hs_template_files = $(embedDir "exe/hs-template")
