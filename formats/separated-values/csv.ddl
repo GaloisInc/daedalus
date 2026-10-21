@@ -13,8 +13,6 @@
                - The first line is _always_ treated as a header
                  - Which implies every valid CSV has at least _two_
                    lines
-               - CSVs where records don't have the proper number of
-                 columns (as determined by the header) are rejected
                - CRLF, CR, and LF are all accepted as the separator
                  between header/records; this extra permissiveness is
                  common in other CSV parser implementations
