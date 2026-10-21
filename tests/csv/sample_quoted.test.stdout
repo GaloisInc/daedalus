@@ -1,9 +1,9 @@
 --- Found 1 results:
-{ header: [ "id"
-          , "description"
-          , "note"
-          , "multiline"
-          ]
+{ header: Just [ "id"
+               , "description"
+               , "note"
+               , "multiline"
+               ]
 , data: [ [ "1"
           , "Simple, with a comma"
           , "No quotes here"

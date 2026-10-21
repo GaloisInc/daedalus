@@ -20,6 +20,6 @@
 
 import SeparatedValues
 
-def CSV = { let ?$sep = ','; $$ = SV; }
+def CSV = { let ?$sep = ','; let ?includeHeader = true; $$ = SV; }
 
 def Main = { $$ = CSV; END }

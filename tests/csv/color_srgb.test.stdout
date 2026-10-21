@@ -1,8 +1,8 @@
 --- Found 1 results:
-{ header: [ "Name"
-          , "HEX"
-          , "RGB"
-          ]
+{ header: Just [ "Name"
+               , "HEX"
+               , "RGB"
+               ]
 , data: [ [ "White"
           , "#FFFFFF"
           , "rgb(100,100,100)"

@@ -25,7 +25,10 @@ import Daedalus
 
 def SV =
   block
-    header = { $$ = Header; Newline }
+    header =
+      if ?includeHeader
+        then { let h = { $$ = Header; Newline}; ^ just h}
+        else nothing
     data = OneOrMoreSepBy Record Newline
     Optional Newline
 
