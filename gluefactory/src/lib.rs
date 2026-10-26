@@ -267,6 +267,17 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 	let getter_name = format_ident!("{}_as_{}", enum_name, name);
 	let doc_string = format!("extern int {}({}* obj, int* error);", checker_name, enum_name.to_string());
 	append_to_c_header(&doc_string,"parser_bindings.h");
+	let variant_pattern = match &v.fields {
+	    Fields::Unit => quote! {
+		#enum_name::#name
+	    },
+	    Fields::Unnamed(_) => quote! {
+		#enum_name::#name(..)
+	    },
+	    Fields::Named(_) => quote! {
+		#enum_name::#name { .. }
+	    },
+	};
 	let is_method = quote! {
 	    #[unsafe(no_mangle)]
 	    pub unsafe extern "C" fn #checker_name(obj: *const #enum_name, err: *mut c_int) -> c_int {
@@ -278,7 +289,8 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 		}
 		unsafe {
 		    let o = &*obj;
-		    if matches!(o, #enum_name::#name { .. }) {
+		    set_error(err, FfiError::Ok);
+		    if matches!(o, #variant_pattern) {
 			return 1;
 		    }
 		    return 0;
