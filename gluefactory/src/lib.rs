@@ -366,10 +366,18 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 	}
     });
 
-    let var_checks = var_names.iter().rev().enumerate().map(|(idx, name)| {
-	let var_field = format_ident!("{}_{}", enum_name, name);
-	quote! {
-	    #enum_name::#name { .. } => #idx,
+    let var_checks = variants.iter().rev().enumerate().map(|(idx, variant)| {
+	let name = &variant.ident;
+	match &variant.fields {
+	    Fields::Unit => quote! {
+		#enum_name::#name => #idx,
+	    },
+	    Fields::Unnamed(_) => quote! {
+		#enum_name::#name(..) => #idx,
+	    },
+	    Fields::Named(_) => quote! {
+		#enum_name::#name { .. } => #idx,
+	    },
 	}
     });
     let get_var_name = format_ident!("get_{}_variant", enum_name);
@@ -386,14 +394,17 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 	    }
 	    unsafe {
 		let o = &*obj;
-		match o {
+		let variant = match o {
 		    #(#var_checks)*
-		}
+		};
+		set_error(err, FfiError::Ok);
+		variant
 	    }
         }
     };
     let code = quote! {
 	#(#c_methods)*
+	#var_method
     };
 
     TokenStream::from(code)
