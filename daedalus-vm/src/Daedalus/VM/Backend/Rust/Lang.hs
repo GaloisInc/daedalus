@@ -450,6 +450,10 @@ inlineAlwaysAttribute :: Attribute ()
 inlineAlwaysAttribute =
   Attribute Outer (simplePath "inline") (parenTokens [identToken "always"]) ()
 
+helperAttribute :: Ident -> Ident -> Attribute ()
+helperAttribute attrName setting =
+  Attribute Outer (simplePath attrName) (parenTokens [identToken setting]) ()
+
 macDecl :: Mac () -> Item ()
 macDecl m = MacItem [] m ()
 
@@ -498,14 +502,26 @@ mkFnItem mbDoc allow extraAttrs vis nm generics params returnTy body =
     decl            = FnDecl (mkArg <$> params) (Just returnTy) False ()
 
 mkEnum :: [Ident] -> Visibility () -> Ident -> Generics () -> [(Ident,[Ty ()])] -> Item ()
-mkEnum der vis nm gs cons = Enum derA vis nm (map mkCon cons) gs ()
+mkEnum = mkEnumWithAttrs []
+
+mkEnumWithAttrs ::
+  [Attribute ()] -> [Ident] -> Visibility () -> Ident -> Generics () ->
+  [(Ident,[Ty ()])] -> Item ()
+mkEnumWithAttrs extraAttrs der vis nm gs cons =
+  Enum (derA ++ extraAttrs) vis nm (map mkCon cons) gs ()
   where
   mkCon (i,ts)  = Variant i [] (if null ts then UnitD () else TupleD (map anon ts) ()) Nothing ()
   anon t        = StructField Nothing InheritedV t [] ()
   derA          = if null der then [] else [deriveAttribute der]
 
 mkStruct :: [Ident] -> Visibility () -> Ident -> Generics () -> [(Ident,Ty ())] -> Item ()
-mkStruct der vis nm gs flds = StructItem derA vis nm (StructD fs ()) gs ()
+mkStruct = mkStructWithAttrs []
+
+mkStructWithAttrs ::
+  [Attribute ()] -> [Ident] -> Visibility () -> Ident -> Generics () ->
+  [(Ident,Ty ())] -> Item ()
+mkStructWithAttrs extraAttrs der vis nm gs flds =
+  StructItem (derA ++ extraAttrs) vis nm (StructD fs ()) gs ()
   where
   fs = [ StructField (Just x) vis t [] () | (x,t) <- flds ]
   derA          = if null der then [] else [deriveAttribute der]

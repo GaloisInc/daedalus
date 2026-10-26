@@ -30,6 +30,35 @@ impl Parse for ParserMainArgs {
     }
 }
 
+fn has_boxed_attribute(input: &DeriveInput, attribute_name: &str) -> bool {
+    input.attrs.iter().any(|attr| {
+	if !attr.path().is_ident(attribute_name) {
+	    return false;
+	}
+	let mut boxed = false;
+	attr.parse_nested_meta(|meta| {
+	    if meta.path.is_ident("boxed") {
+		boxed = true;
+		Ok(())
+	    } else {
+		Err(meta.error("expected `boxed`"))
+	    }
+	}).expect("invalid C accessor configuration");
+	boxed
+    })
+}
+
+fn public_boxed_name(repr_name: &Ident) -> Ident {
+    let repr = repr_name.to_string();
+    if let Some(name) = repr.strip_prefix("_repr_anon_") {
+	format_ident!("_anon_{}", name)
+    } else if let Some(name) = repr.strip_prefix("_repr_") {
+	format_ident!("{}", name)
+    } else {
+	panic!("boxed C accessors require a `_repr_` type name")
+    }
+}
+
 fn append_to_c_header(txt: &String, filename: &str) {
     let base_dir = std::env::var("C_HEADER_DIR")
         .map(PathBuf::from)
@@ -175,10 +204,21 @@ fn as_primitive_type(ty : &Type) -> Option<PrimType> {
     None
 }
 
-#[proc_macro_derive(Accessors)]
+#[proc_macro_derive(Accessors, attributes(accessors))]
 pub fn derive_accessors(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    let boxed = has_boxed_attribute(&input, "accessors");
     let struct_name = input.ident;
+    let public_name = if boxed {
+	public_boxed_name(&struct_name)
+    } else {
+	struct_name.clone()
+    };
+    let accessor_obj_type: Type = if boxed {
+	parse_quote! { ddl::O<#struct_name> }
+    } else {
+	parse_quote! { #struct_name }
+    };
     let fields = match input.data {
 	Data::Struct(data) => match data.fields {
 	    Fields::Named(fields) => fields.named,
@@ -197,10 +237,10 @@ pub fn derive_accessors(input: TokenStream) -> TokenStream {
     //         }
     // 	}
     // });
-    append_to_c_header(&format!("typedef struct {} {};", struct_name, struct_name),"parser_types.h");
+    append_to_c_header(&format!("typedef struct {} {};", public_name, public_name),"parser_types.h");
     let c_accessors = fields.iter().map(|f| {
 	let name = f.ident.as_ref().unwrap();
-	let getter_name = format_ident!("get_{}_{}", struct_name, name);
+	let getter_name = format_ident!("get_{}_{}", public_name, name);
 	let ty = &f.ty;
 	let mut return_type: Type = parse_quote! { *const #ty };
 	let mut null_val = quote! { std::ptr::null() };
@@ -232,10 +272,19 @@ pub fn derive_accessors(input: TokenStream) -> TokenStream {
 	if ! is_c_prim(&ret_type) {
 	    append_to_c_header(&format!("typedef struct {} {};", ret_type, ret_type),"parser_types.h"); 
 	}
-	append_to_c_header(&format!("extern {} {}({}* obj, int* error);", to_c_prim(&ret_type), getter_name, struct_name.to_string()),"parser_bindings.h");
+	append_to_c_header(&format!("extern {} {}({}* obj, int* error);", to_c_prim(&ret_type), getter_name, public_name.to_string()),"parser_bindings.h");
+	let get_obj = if boxed {
+	    quote! {
+		let o = &**obj;
+	    }
+	} else {
+	    quote! {
+		let o = &*obj;
+	    }
+	};
 	quote! {
 	    #[unsafe(no_mangle)]
-	    pub unsafe extern "C" fn #getter_name(obj: *const #struct_name, err: *mut c_int) -> #return_type {
+	    pub unsafe extern "C" fn #getter_name(obj: *const #accessor_obj_type, err: *mut c_int) -> #return_type {
 		if obj.is_null() {
 		    unsafe {
 			set_error(err, FfiError::InvalidPtr);
@@ -243,7 +292,7 @@ pub fn derive_accessors(input: TokenStream) -> TokenStream {
 		    return #null_val;
 		}
 		unsafe {
-		    let o = &*obj;
+		    #get_obj
 		    set_error(err, FfiError::Ok);
 		    #epilogue//&o.#name// as #return_type
 		}
@@ -262,24 +311,44 @@ pub fn derive_accessors(input: TokenStream) -> TokenStream {
     TokenStream::from(code)
 }
 
-#[proc_macro_derive(Variants)]
+#[proc_macro_derive(Variants, attributes(variants))]
 pub fn derive_variants(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    let boxed = has_boxed_attribute(&input, "variants");
     let enum_name = input.ident;
+    let public_name = if boxed {
+	public_boxed_name(&enum_name)
+    } else {
+	enum_name.clone()
+    };
+    let variant_obj_type: Type = if boxed {
+	parse_quote! { ddl::O<#enum_name> }
+    } else {
+	parse_quote! { #enum_name }
+    };
     let variants = match input.data {
 	Data::Enum(data) => data.variants,
 	_ => panic!("can only make variant checks for enum types"),
     };
 
-    append_to_c_header(&format!("typedef struct {} {};", enum_name, enum_name),"parser_types.h");
-    let var_names = variants.iter().map(|v| {format!("{}_{}",enum_name, v.ident)}).collect::<Vec<String>>();
-    append_to_c_header(&format!("typedef enum {{ {} }} Var_{};", var_names.iter().rev().enumerate().map(|(idx, n)| {format!("{} = {}", n, idx)}).collect::<Vec<String>>().join(", "), enum_name),"parser_types.h");
+    append_to_c_header(&format!("typedef struct {} {};", public_name, public_name),"parser_types.h");
+    let var_names = variants.iter().map(|v| {format!("{}_{}",public_name, v.ident)}).collect::<Vec<String>>();
+    append_to_c_header(&format!("typedef enum {{ {} }} Var_{};", var_names.iter().rev().enumerate().map(|(idx, n)| {format!("{} = {}", n, idx)}).collect::<Vec<String>>().join(", "), public_name),"parser_types.h");
+    let get_obj = if boxed {
+	quote! {
+	    let o = &**obj;
+	}
+    } else {
+	quote! {
+	    let o = &*obj;
+	}
+    };
     
     let c_methods = variants.iter().map(|v| {
 	let name = &v.ident;
-	let checker_name = format_ident!("{}_is_{}", enum_name, name);
-	let getter_name = format_ident!("{}_as_{}", enum_name, name);
-	let doc_string = format!("extern int {}({}* obj, int* error);", checker_name, enum_name.to_string());
+	let checker_name = format_ident!("{}_is_{}", public_name, name);
+	let getter_name = format_ident!("{}_as_{}", public_name, name);
+	let doc_string = format!("extern int {}({}* obj, int* error);", checker_name, public_name.to_string());
 	append_to_c_header(&doc_string,"parser_bindings.h");
 	let variant_pattern = match &v.fields {
 	    Fields::Unit => quote! {
@@ -294,7 +363,7 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 	};
 	let is_method = quote! {
 	    #[unsafe(no_mangle)]
-	    pub unsafe extern "C" fn #checker_name(obj: *const #enum_name, err: *mut c_int) -> c_int {
+	    pub unsafe extern "C" fn #checker_name(obj: *const #variant_obj_type, err: *mut c_int) -> c_int {
 		if obj.is_null() {
 		    unsafe {
 			set_error(err, FfiError::InvalidPtr);
@@ -302,7 +371,7 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 		    return 0;
 		}
 		unsafe {
-		    let o = &*obj;
+		    #get_obj
 		    set_error(err, FfiError::Ok);
 		    if matches!(o, #variant_pattern) {
 			return 1;
@@ -318,9 +387,9 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 		    
 		    let target_field = &bindings[idx];
 		    let getter_name = if bindings.len() == 0 {
-			format_ident!("{}_as_{}", enum_name, name)
+				format_ident!("{}_as_{}", public_name, name)
 		    } else {
-			format_ident!("{}_as_{}_get_{}", enum_name, name, idx)
+				format_ident!("{}_as_{}_get_{}", public_name, name, idx)
 		    };
 		    let ty = &f.ty;
 		    let mut return_type: Type = parse_quote! { *const #ty };
@@ -354,10 +423,10 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 		    if ! is_c_prim(&c_ret_type) {
 			append_to_c_header(&format!("typedef struct {} {};",c_ret_type,c_ret_type),"parser_types.h");
 		    }
-		    append_to_c_header(&format!("extern {} {}({}* obj, int* error);", to_c_prim(&c_ret_type), getter_name, enum_name.to_string()),"parser_bindings.h");
+		    append_to_c_header(&format!("extern {} {}({}* obj, int* error);", to_c_prim(&c_ret_type), getter_name, public_name.to_string()),"parser_bindings.h");
 		    quote! {
 			#[unsafe(no_mangle)]
-			pub unsafe extern "C" fn #getter_name(obj: *const #enum_name, err: *mut c_int) -> #return_type {
+			pub unsafe extern "C" fn #getter_name(obj: *const #variant_obj_type, err: *mut c_int) -> #return_type {
 			    if obj.is_null() {
 				unsafe {
 				    set_error(err, FfiError::InvalidPtr);
@@ -365,7 +434,7 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 				return #null_val;
 			    }
 			    unsafe {
-				let o = &*obj;
+				#get_obj
 				if let #enum_name::#name( #( #bindings ),* ) = o {
 				    set_error(err, FfiError::Ok);
 				    #epilogue
@@ -406,12 +475,12 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 	    },
 	}
     });
-    let get_var_name = format_ident!("get_{}_variant", enum_name);
-    let get_var_doc_string = format!("extern Var_{} {}({}* obj, int* error);", enum_name.to_string(), get_var_name.to_string(), enum_name.to_string());
+    let get_var_name = format_ident!("get_{}_variant", public_name);
+    let get_var_doc_string = format!("extern Var_{} {}({}* obj, int* error);", public_name.to_string(), get_var_name.to_string(), public_name.to_string());
     append_to_c_header(&get_var_doc_string,"parser_bindings.h");
     let var_method = quote! {
 	#[unsafe(no_mangle)]
-	pub unsafe extern "C" fn #get_var_name(obj: *const #enum_name, err: *mut c_int) -> c_int {
+	pub unsafe extern "C" fn #get_var_name(obj: *const #variant_obj_type, err: *mut c_int) -> c_int {
 	    if obj.is_null() {
 		unsafe {
 		    set_error(err, FfiError::InvalidPtr);
@@ -419,7 +488,7 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 		return 0;
 	    }
 	    unsafe {
-		let o = &*obj;
+		#get_obj
 		let variant = match o {
 		    #(#var_checks)*
 		};

@@ -88,7 +88,8 @@ compileTDecl td
     let ?fnMsg = pp tn in
     case Core.tDef td of
       Core.TStruct fs ->
-        [ Rust.mkStruct (der ++ ["Accessors" | ?cBindings]) Rust.PublicV (nm isRec) gen
+        [ Rust.mkStructWithAttrs accessorAttrs
+            accessorDerives Rust.PublicV (nm isRec) gen
             [ (compileFieldLabel l, compileType VM.Owned t) | (l,t) <- fs ]
         , makeSerializeStruct as (nm isRec) fs
         , if isRec
@@ -99,7 +100,8 @@ compileTDecl td
               tyDecl "by_ref"
         ]
       Core.TUnion fs ->
-        [ Rust.mkEnum (unionDer ++ ["Variants" | ?cBindings]) Rust.PublicV (nm isRec) gen
+        [ Rust.mkEnumWithAttrs variantAttrs
+            variantDerives Rust.PublicV (nm isRec) gen
             [ (compileConLabel l, [ compileType VM.Owned t | not (Core.isUnit t) ])
             | (l,t) <- fs ]
         , makeSerializeEnum as (nm isRec) fs
@@ -181,6 +183,16 @@ compileTDecl td
 
   where
   der = ["Clone","PartialEq","Eq","PartialOrd","Ord"]
+  accessorDerives = der ++ ["Accessors" | ?cBindings]
+  accessorAttrs =
+    [ Rust.helperAttribute "accessors" "boxed"
+    | ?cBindings, isRec
+    ]
+  variantDerives = unionDer ++ ["Variants" | ?cBindings]
+  variantAttrs =
+    [ Rust.helperAttribute "variants" "boxed"
+    | ?cBindings, isRec
+    ]
   unionDer =
     case Core.tDef td of
       Core.TUnion fs
