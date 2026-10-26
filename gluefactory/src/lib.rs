@@ -1,8 +1,6 @@
 extern crate proc_macro;
 use proc_macro2::Ident;
-use proc_macro2::TokenStream as TokenStream2;
 use proc_macro::TokenStream;
-use quote::ToTokens;
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Fields, PathArguments, GenericArgument, Lit, Expr, Type, Token, TypePtr};
 use syn::parse::{Parse, ParseStream};
@@ -74,6 +72,20 @@ fn append_to_c_header(txt: &String, filename: &str) {
         .append(true)
         .open(&target_header)
         .expect("Failed to open or create C header file");
+
+    if file.metadata().expect("Failed to inspect C header file").len() == 0 {
+	match filename {
+	    "parser_types.h" => {
+		writeln!(file, "#pragma once\n")
+		    .expect("Failed to write C types header preamble");
+	    },
+	    "parser_bindings.h" => {
+		writeln!(file, "#pragma once\n#include \"parser_types.h\"\n")
+		    .expect("Failed to write C bindings header preamble");
+	    },
+	    _ => {}
+	}
+    }
 
     writeln!(file,"{}",txt).expect("Failed to write function declaration");
 }
@@ -157,8 +169,7 @@ fn as_type_string(ty : &Type) -> Option<String> {
 	    return as_type_string(subtype);
 	},
 	_ => { return None }
-    };
-    return None
+    }
 }
 
 fn as_primitive_type(ty : &Type) -> Option<PrimType> {
@@ -347,7 +358,6 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
     let c_methods = variants.iter().map(|v| {
 	let name = &v.ident;
 	let checker_name = format_ident!("{}_is_{}", public_name, name);
-	let getter_name = format_ident!("{}_as_{}", public_name, name);
 	let doc_string = format!("extern int {}({}* obj, int* error);", checker_name, public_name.to_string());
 	append_to_c_header(&doc_string,"parser_bindings.h");
 	let variant_pattern = match &v.fields {
@@ -380,7 +390,7 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 		}
             }
 	};
-	let as_method = match(v.fields) {
+	let as_method = match v.fields {
 	    Fields::Unnamed(ref fields) => {
 		let bindings: Vec<_> = (0..fields.unnamed.len()).map(|idx| quote::format_ident!("field_{}", idx)).collect();
 		let getters = fields.unnamed.iter().enumerate().map(|(idx,f)| {
@@ -449,10 +459,10 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 		    #(#getters)*
 		}
 	    },
-	    Fields::Named(ref fields) => {
+	    Fields::Named(_) => {
 		quote!{}
 	    },
-	    _ => quote!{},
+	    Fields::Unit => quote!{},
 	};
 	
 	quote! {
