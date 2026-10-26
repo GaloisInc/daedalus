@@ -195,6 +195,7 @@ compileGeneratedModule cBindings uses name code =
      , Rust.Variant (Rust.mkIdent "ParseError") [] (Rust.UnitD ()) (Just (Rust.litExpr (Rust.intLit 1))) ()
      , Rust.Variant (Rust.mkIdent "InvalidPtr") [] (Rust.UnitD ()) (Just (Rust.litExpr (Rust.intLit 2))) ()
      , Rust.Variant (Rust.mkIdent "InvalidIndex") [] (Rust.UnitD ()) (Just (Rust.litExpr (Rust.intLit 3))) ()
+     , Rust.Variant (Rust.mkIdent "InvalidLength") [] (Rust.UnitD ()) (Just (Rust.litExpr (Rust.intLit 4))) ()
      ]
    setFfiError = [Rust.mkFnItem' Nothing [] [] Rust.CrateV (Rust.mkIdent "set_error") Rust.noGenerics setErrorArgs Nothing setErrorBody]
    setErrorArgs = [(Rust.mkIdent "err_ptr", Rust.Ptr Rust.Mutable (Rust.simpleType $ Rust.mkIdent "c_int") ()), (Rust.mkIdent "code", Rust.simpleType $ Rust.mkIdent "FfiError")]

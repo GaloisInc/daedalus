@@ -429,8 +429,12 @@ pub fn make_parser_main(input: TokenStream) -> TokenStream {
 	#[unsafe(no_mangle)]
 	pub unsafe extern "C" fn #parser_name(buf: *const c_char, len: c_int, err: *mut c_int) -> *mut #parsed_struct_name {
 	    if buf.is_null() {
-		set_error(err, FfiError::InvalidPtr);
-		return std::ptr::null_mut();
+	        set_error(err, FfiError::InvalidPtr);
+	        return std::ptr::null_mut();
+	    }
+	    if len < 0 {
+	        set_error(err, FfiError::InvalidLength);
+	        return std::ptr::null_mut();
 	    }
 	    let byte_slice = slice::from_raw_parts(buf as *const u8, len as usize);
 	    let byte_arr = ddl::new_byte_array(&byte_slice);
