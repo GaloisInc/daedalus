@@ -3,7 +3,7 @@ External Declarations
 
 DaeDaLus supports an interface for declaring parsers and types whose
 implementations are provided by the code generation backend (currently
-C++).  This is useful when integrating DaeDaLus-generated code with
+C++ and Rust).  This is useful when integrating DaeDaLus-generated code with
 host-language libraries or when certain operations cannot be expressed
 in DaeDaLus itself.
 
@@ -56,6 +56,17 @@ Here is a complete example:
     *newInput = currentInput;
     return DDL::ParserResult::Ok;
   }
+
+When generating Rust, use ``--user-fun=QUAL`` to specify the module
+containing implementations of external functions.  The code generator emits
+will use ``QUAL::f`` when calling external function ``f``.
+Additional Rust imports may be added with ``--add-import``.
+
+If an external function needs to use types defined by the generated parser,
+generate the parser directly into the application crate with
+``--output-file``.  The generated parser and the native implementation can
+then be sibling modules, allowing the native implementation to import
+generated types through paths such as ``crate::format::Packet``.
 
 External Module Imports
 -----------------------

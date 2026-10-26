@@ -96,3 +96,10 @@ daedalus compile-hs spec.ddl --out-dir=dir
 dex my-spec.dex
 dex my-spec.dex --dex-path=<dex-lib-dir> --ddl-path=<ddl-dir> --output=exporter.cpp
 ```
+
+By default, `compile-hs` uses the VM Haskell backend and generates a Cabal
+application containing a Template Haskell splice. Building it requires the
+`daedalus`, `rts-vm-hs`, and `rts-hs-data` Haskell packages; a standalone
+`daedalus` executable is not enough. The generated application does not
+include a `cabal.project`; project configuration belongs to the consuming
+build environment.
