@@ -247,7 +247,10 @@ instance TypeOf Match where
       MatchByte {}  -> TUInt (TSize 8)
 
 instance TypeOf a => TypeOf (Case a) where
-  typeOf (Case _ as) = typeOf (snd (head as))
+  typeOf (Case _ as) =
+    case as of
+      [] -> panic "typeOf @(Case a)" ["no case alternatives"]
+      (a:_) -> typeOf (snd a)
 
 instance (TypeOf a, TypeOf b)=> TypeOf (LoopMorphism' a b) where
   typeOf lm =

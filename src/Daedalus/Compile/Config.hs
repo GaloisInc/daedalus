@@ -10,8 +10,6 @@ import qualified Data.ByteString as BS
 import Control.Applicative((<|>))
 import Control.Exception(throwIO)
 
-import Daedalus.Panic(panic)
-import Daedalus.Value(unTrace)
 import Daedalus.Value.Extract
 import Daedalus.Type.AST(primName,Name,ModuleName)
 import Daedalus.Compile.ConfigParser(pConfig)
@@ -90,22 +88,3 @@ primDecl m v = (nm, fun)
   as  = (#args v) :: Vector Value
   def = #definition v
   fun = \ts -> aps def (drop (Vector.length as) ts)
-
-instance FromValue Term where
-  fromValue v = aps (Var (#fun v)) (map funArg (#args v))
-
-funArg :: Value -> Term
-funArg val =
-  case unTrace val of
-    VUnionElem "TArg" v -> TyParam (Raw (fromValue v :: String))
-    VUnionElem "Arg"  v -> fromValue v
-    _                   -> panic "funArg" ["Invalid funArg"]
-
-instance FromValue Import where
-  fromValue v = Import (#module v) (#qualifier v)
-
-instance FromValue ImportQualifier where
-  fromValue v = case fromValue v of
-                  Nothing -> Unqualified
-                  Just a  -> QualifyAs a
-

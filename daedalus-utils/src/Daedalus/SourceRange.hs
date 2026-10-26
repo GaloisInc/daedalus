@@ -14,9 +14,15 @@ module Daedalus.SourceRange
 
   , HasRange(..)
 
+  , HasSourcePaths(..)
+
   , synthetic
   , syntheticPos
   ) where
+
+import Data.Set (Set)
+import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import AlexTools hiding ((<->))
 
@@ -55,8 +61,30 @@ x `sourceRangeContainedIn` y
                  , sourceTo   = sourceIndex -> toY
                  } = range y
 
+class HasSourcePaths a where
+  getSourcePaths :: a -> Set FilePath
+  mapSourcePaths :: (FilePath -> FilePath) -> a -> a
 
+instance (HasSourcePaths a, HasSourcePaths b) => HasSourcePaths (a,b) where
+  getSourcePaths (a,b) = Set.union (getSourcePaths a) (getSourcePaths b)
+  mapSourcePaths f (a,b) = (mapSourcePaths f a, mapSourcePaths f b)
 
+instance HasSourcePaths a => HasSourcePaths [a] where
+  getSourcePaths   = Set.unions . map getSourcePaths
+  mapSourcePaths f = fmap (mapSourcePaths f)
 
+instance HasSourcePaths a => HasSourcePaths (Maybe a) where
+  getSourcePaths   = maybe Set.empty getSourcePaths
+  mapSourcePaths f = fmap (mapSourcePaths f)
 
+instance HasSourcePaths SourceRange where
+  getSourcePaths x = getSourcePaths (sourceFrom x, sourceTo x)
+  mapSourcePaths f x =
+    SourceRange { sourceFrom = mapSourcePaths f (sourceFrom x)
+                    , sourceTo   = mapSourcePaths f (sourceTo x)
+                    }
 
+instance HasSourcePaths SourcePos where
+  getSourcePaths x = Set.singleton (Text.unpack (sourceFile x))
+  mapSourcePaths f x =
+    x { sourceFile = Text.pack (f (Text.unpack (sourceFile x))) }

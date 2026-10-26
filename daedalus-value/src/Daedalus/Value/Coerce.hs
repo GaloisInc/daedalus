@@ -79,11 +79,11 @@ vCoerceTo tgt v =
         TVInteger     -> (VInteger i, fromInteger i == n)
           where i = floatingToInt n
 
-        TVUInt w      -> (r, let VUInt _ j = r in fromInteger j == n)
-          where r = floatingToUInt w n
+        TVUInt w      -> (VUInt w j, fromInteger j == n)
+          where j = floatingToUIntVal w n
 
-        TVSInt w      -> (r, let VSInt _ j = r in fromInteger j == n)
-          where r = floatingToSInt w n
+        TVSInt w      -> (VSInt w j, fromInteger j == n)
+          where j = floatingToSIntVal w n
 
         TVFloat       -> (v, exact)
         TVDouble      -> (VDouble (float2Double n), True)
@@ -99,11 +99,11 @@ vCoerceTo tgt v =
         TVInteger     -> (VInteger i, fromInteger i == n)
           where i = floatingToInt n
 
-        TVUInt w      -> (r, let VUInt _ j = r in fromInteger j == n)
-          where r = floatingToUInt w n
+        TVUInt w      -> (VUInt w j, fromInteger j == n)
+          where j = floatingToUIntVal w n
 
-        TVSInt w      -> (r, let VSInt _ j = r in fromInteger j == n)
-          where r = floatingToSInt w n
+        TVSInt w      -> (VSInt w j, fromInteger j == n)
+          where j = floatingToSIntVal w n
 
         TVFloat       -> ((VFloat x), b)
           where x = double2Float n
@@ -182,25 +182,25 @@ floatingToInt a
   | otherwise    = truncate a
 
 -- | Saturating conversion from float to UInt: NaN -> 0, clamp to [0, max].
-floatingToUInt :: RealFloat a => Int -> a -> Value
-floatingToUInt w a
-  | isNaN a || a <= 0    = VUInt w 0
-  | isInfinite a         = VUInt w hi
-  | i >= hi              = VUInt w hi
-  | otherwise            = VUInt w i
+floatingToUIntVal :: RealFloat a => Int -> a -> Integer
+floatingToUIntVal w a
+  | isNaN a || a <= 0    = 0
+  | isInfinite a         = hi
+  | i >= hi              = hi
+  | otherwise            = i
   where
     i  = truncate a
     hi = snd (uintRange w)
 
 -- | Saturating conversion from float to SInt: NaN → 0, clamp to [min, max].
-floatingToSInt :: RealFloat a => Int -> a -> Value
-floatingToSInt w a
-  | isNaN a              = VSInt w 0
-  | isInfinite a && a > 0 = VSInt w hi
-  | isInfinite a         = VSInt w lo
-  | i < lo               = VSInt w lo
-  | i > hi               = VSInt w hi
-  | otherwise            = VSInt w i
+floatingToSIntVal :: RealFloat a => Int -> a -> Integer
+floatingToSIntVal w a
+  | isNaN a              = 0
+  | isInfinite a && a > 0 = hi
+  | isInfinite a         = lo
+  | i < lo               = lo
+  | i > hi               = hi
+  | otherwise            = i
   where
     i       = truncate a
     (lo,hi) = sintRange w

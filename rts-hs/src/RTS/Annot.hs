@@ -5,6 +5,7 @@ import qualified Data.Set as Set
 
 import Daedalus.RTS.JSON
 import Daedalus.RTS.HasInputs
+import Daedalus.SourceRange (HasSourcePaths(..))
 import RTS.ParseError
 
 

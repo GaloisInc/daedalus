@@ -37,6 +37,7 @@ import Daedalus.CompileHS(hsIdentMod)
 import Daedalus.Type.AST(TCModule(..),TCDecl(..),TCDeclDef(..))
 import Daedalus.Type.Monad(TypeWarning(..))
 import Daedalus.Type.Pretty(ppTypesWith)
+import Daedalus.Panic (panic)
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
@@ -280,7 +281,10 @@ interpVM :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpVM opts mm inpMb =
  do r <- doToVM opts mm
     inp  <- ddlIO (RTS.newInputFromFile inpMb)
-    let entries = VM.semModule (head (VM.pModules r))
+    let md = case VM.pModules r of
+          [] -> panic "interpVM" ["empty pModules in Program"]
+          (m:_) -> m
+    let entries = VM.semModule md
     let ?opts = opts
     for_ (Map.elems entries) \impl ->
         do let values = VM.resultToValues (impl [VStream inp])
