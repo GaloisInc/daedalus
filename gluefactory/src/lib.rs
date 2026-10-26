@@ -433,9 +433,11 @@ pub fn make_parser_main(input: TokenStream) -> TokenStream {
     let parser_name = format_ident!("parse_{}", struct_name);
     let main_getter_name = format_ident!("get_{}", struct_name);
     let parsed_struct_name = format_ident!("Parsed{}", struct_name);
+    let parsed_struct_free_name = format_ident!("free_{}", parsed_struct_name);
     append_to_c_header(&format!("typedef struct {} {};", parsed_struct_name, parsed_struct_name),"parser_types.h");
     append_to_c_header(&format!("typedef struct {} {};", struct_name, struct_name),"parser_types.h");
     append_to_c_header(&format!("extern {}* {}({}* parsed);", struct_name, main_getter_name, parsed_struct_name),"parser_bindings.h");
+    append_to_c_header(&format!("extern void {}({}* parsed);", parsed_struct_free_name, parsed_struct_name),"parser_bindings.h");
     append_to_c_header(&format!("extern {}* {}(char* buf, int len, int* error);", parsed_struct_name, parser_name),"parser_bindings.h");
     quote! {
 	pub struct #parsed_struct_name {
@@ -447,6 +449,15 @@ pub fn make_parser_main(input: TokenStream) -> TokenStream {
 	pub unsafe extern "C" fn #main_getter_name(p: *const #parsed_struct_name) -> *const #struct_name {
 	    let ps = &*p;
 	    return &ps.main;
+	}
+
+	#[unsafe(no_mangle)]
+	pub unsafe extern "C" fn #parsed_struct_free_name(p: *mut #parsed_struct_name) {
+	    if !p.is_null() {
+	        unsafe {
+	            drop(Box::from_raw(p));
+	        }
+	    }
 	}
 	
 	#[unsafe(no_mangle)]
