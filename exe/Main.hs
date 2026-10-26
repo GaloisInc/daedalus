@@ -414,8 +414,7 @@ generateRust opts mm =
                 when (optCBindings opts) $
                   do
                     writeFile (dir </> "build.rs") $ unlines
-                      [ "use std::env;"
-                        ,"use std::fs;"
+                      [ "use std::fs;"
                         ,"use std::path::Path;"
                         ,"use filetime;"
                         ,""
@@ -424,7 +423,7 @@ generateRust opts mm =
                         ,"        let file_path = Path::new(&n);"
                         ,""
                         ,"        if file_path.exists() {"
-                        ,"           if let Err(e) = fs::remove_file(&file_path) {}"
+                        ,"           let _ = fs::remove_file(&file_path);"
                         ,"        }"
                         ,"    });"
                         ,"    println!(\"cargo:rerun-if-changed=FORCE_REBUILD_NON_EXISTENT_FILE\");"
