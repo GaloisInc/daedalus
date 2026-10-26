@@ -174,17 +174,41 @@ compileGeneratedModule cBindings uses name code =
      (if cBindings then
        ffiError ++
        setFfiError ++
-       parserMainMacro ++
+       parserMainMacros ++
        builtinAccessors
       else []) ++
      concatMap (compileUserType . NonRec) (reverse (moduleTypes code)) ++
      concatMap compileFunGroup (reverse (moduleFuns code)))
  where
    ffiError = [Rust.Enum [repri32Attr] Rust.PublicV (Rust.mkIdent "FfiError") ffiFields Rust.noGenerics ()]
-   parserMainMacro =
-     [Rust.callMacroItem (Rust.simplePath "make_parser_main") mainParserArgs | Core.mNameText name /= "Daedalus"]
+   parserMainMacros = map compileEntryMacro entries
+   entries =
+     [ fun
+     | fun <- forgetRecs (moduleFuns code)
+     , VM.vmfIsEntry fun
+     ]
+   compileEntryMacro fun
+     | not (entryHasNoArgs fun) =
+         unsupported (backticks (pp (VM.vmfName fun)) <+>
+                      "has parameters, which are not supported by C bindings")
+     | otherwise =
+         let ?fnMsg = backticks (pp fnm)
+         in Rust.callMacroItem'
+              (Rust.simplePath "make_parser_main")
+              (Rust.commaList
+                [ Rust.tyToken (compileType VM.Owned (Core.fnameType fnm))
+                , Rust.identToken (compileFName fnm)
+                ])
+     where
+     fnm = VM.vmfName fun
+   entryHasNoArgs fun =
+     case VM.vmfDef fun of
+       VM.VMDef body ->
+         case Map.lookup (VM.vmfEntry body) (VM.vmfBlocks body) of
+           Just entryBlock -> length (VM.blockArgs entryBlock) == 1
+           Nothing -> False
+       VM.VMExtern args -> length args == 1
    builtinAccessors = compileBuiltinSpecializations name (moduleTypes code)
-   mainParserArgs = [Rust.identExpr $ Rust.mkIdent "Main", Rust.identExpr $ Rust.mkIdent "Main"]
    repri32Attr = Rust.Attribute Rust.Inner (Rust.simplePath "repr") toks ()
    toks = Rust.Tree
      $ Rust.Delimited Rust.dummySpan Rust.Paren

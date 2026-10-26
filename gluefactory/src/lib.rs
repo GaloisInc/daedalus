@@ -5,7 +5,7 @@ use proc_macro::TokenStream;
 use quote::ToTokens;
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Fields, PathArguments, GenericArgument, Lit, Expr, Type, Token, TypePtr};
-use syn::punctuated::Punctuated;
+use syn::parse::{Parse, ParseStream};
 use proc_lock::{lock, LockPath};
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -14,6 +14,20 @@ use std::path::PathBuf;
 enum PrimType {
     Signed(usize),
     Unsigned(usize),
+}
+
+struct ParserMainArgs {
+    result_type: Type,
+    parser_fn: Ident,
+}
+
+impl Parse for ParserMainArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+	let result_type = input.parse()?;
+	input.parse::<Token![,]>()?;
+	let parser_fn = input.parse()?;
+	Ok(ParserMainArgs { result_type, parser_fn })
+    }
 }
 
 fn append_to_c_header(txt: &String, filename: &str) {
@@ -424,31 +438,61 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn make_parser_main(input: TokenStream) -> TokenStream {
-    let mut idents = parse_macro_input!(input with Punctuated::<Ident, Token![,]>::parse_terminated);
-    if idents.len() != 2 {
-	panic!("make_parser_main requires two arguments: struct_name, and parser_main_function");
-    }
-    let parser_fn = idents.pop().unwrap().into_value();
-    let struct_name = idents.pop().unwrap().into_value();
-    let parser_name = format_ident!("parse_{}", struct_name);
-    let main_getter_name = format_ident!("get_{}", struct_name);
-    let parsed_struct_name = format_ident!("Parsed{}", struct_name);
+    let ParserMainArgs { result_type, parser_fn } =
+	parse_macro_input!(input as ParserMainArgs);
+    let parser_name = format_ident!("parse_{}", parser_fn);
+    let main_getter_name = format_ident!("get_{}", parser_fn);
+    let parsed_struct_name = format_ident!("Parsed{}", parser_fn);
     let parsed_struct_free_name = format_ident!("free_{}", parsed_struct_name);
+    let mut getter_return_type: Type = parse_quote! { *const #result_type };
+    let mut getter_null_value = quote! { std::ptr::null() };
+    let mut primitive_result = false;
+    match as_primitive_type(&result_type) {
+	Some(PrimType::Unsigned(sz)) => {
+	    let type_name = format_ident!("u{}", sz);
+	    getter_return_type = parse_quote! { #type_name };
+	    getter_null_value = quote! { 0 };
+	    primitive_result = true;
+	},
+	Some(PrimType::Signed(sz)) => {
+	    let type_name = format_ident!("i{}", sz);
+	    getter_return_type = parse_quote! { #type_name };
+	    getter_null_value = quote! { 0 };
+	    primitive_result = true;
+	},
+	None => {}
+    }
+    let getter_result = if primitive_result {
+	quote! {
+	    #getter_return_type::from(ps.main)
+	}
+    } else {
+	quote! {
+	    &ps.main as #getter_return_type
+	}
+    };
+    let result_type_name = as_type_string(&getter_return_type)
+	.expect("make_parser_main result type must have a C-compatible name");
     append_to_c_header(&format!("typedef struct {} {};", parsed_struct_name, parsed_struct_name),"parser_types.h");
-    append_to_c_header(&format!("typedef struct {} {};", struct_name, struct_name),"parser_types.h");
-    append_to_c_header(&format!("extern {}* {}({}* parsed);", struct_name, main_getter_name, parsed_struct_name),"parser_bindings.h");
+    if !is_c_prim(&result_type_name) {
+	append_to_c_header(&format!("typedef struct {} {};", result_type_name, result_type_name),"parser_types.h");
+    }
+    append_to_c_header(&format!("extern {} {}({}* parsed);", to_c_prim(&result_type_name), main_getter_name, parsed_struct_name),"parser_bindings.h");
     append_to_c_header(&format!("extern void {}({}* parsed);", parsed_struct_free_name, parsed_struct_name),"parser_bindings.h");
     append_to_c_header(&format!("extern {}* {}(char* buf, int len, int* error);", parsed_struct_name, parser_name),"parser_bindings.h");
     quote! {
 	pub struct #parsed_struct_name {
 	    buffer: Vec<u8>,
-	    main: #struct_name,
+	    main: #result_type,
 	}
 
 	#[unsafe(no_mangle)]
-	pub unsafe extern "C" fn #main_getter_name(p: *const #parsed_struct_name) -> *const #struct_name {
+	pub unsafe extern "C" fn #main_getter_name(p: *const #parsed_struct_name) -> #getter_return_type {
+	    if p.is_null() {
+	        return #getter_null_value;
+	    }
 	    let ps = &*p;
-	    return &ps.main;
+	    return #getter_result;
 	}
 
 	#[unsafe(no_mangle)]
