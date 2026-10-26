@@ -221,7 +221,7 @@ pub fn derive_accessors(input: TokenStream) -> TokenStream {
 	append_to_c_header(&format!("extern {} {}({}* obj, int* error);", to_c_prim(&ret_type), getter_name, struct_name.to_string()),"parser_bindings.h");
 	quote! {
 	    #[unsafe(no_mangle)]
-	    pub fn #getter_name(obj: *const #struct_name, err: *mut c_int) -> #return_type {
+	    pub unsafe extern "C" fn #getter_name(obj: *const #struct_name, err: *mut c_int) -> #return_type {
 		if obj.is_null() {
 		    unsafe {
 			set_error(err, FfiError::InvalidPtr);
