@@ -34,7 +34,7 @@ def SV =
 
 -- UTF-8 Byte order mark (BOM)
 
-def BOM = @Match "\xEF\xBB\xEF"
+def BOM = @Match "\xEF\xBB\xBF"
 
 -- Headers
 
