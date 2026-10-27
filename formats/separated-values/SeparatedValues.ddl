@@ -28,7 +28,7 @@ def SV =
     Optional BOM
     header =
       if ?includeHeader
-        then { let h = { $$ = Header; Newline}; ^ just h}
+        then just { $$ = Header; Newline }
         else nothing
     data = Records
 
