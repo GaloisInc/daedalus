@@ -503,7 +503,7 @@ pub fn derive_variants(input: TokenStream) -> TokenStream {
 		    #(#var_checks)*
 		};
 		set_error(err, FfiError::Ok);
-		variant
+		variant as c_int
 	    }
         }
     };
