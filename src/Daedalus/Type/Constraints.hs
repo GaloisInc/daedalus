@@ -250,7 +250,7 @@ isMapKey r = go Set.empty
           TTuple ts    -> combine seen ts
           TMaybe t     -> go seen t
           TMap k v     -> combine seen [k,v]
-          TBuilder t   -> go seen t
+          TBuilder {}  -> bad ty
           TStream      -> pure Solved
           TUInt {}     -> pure Solved
           TSInt {}     -> pure Solved
@@ -267,9 +267,7 @@ isMapKey r = go Set.empty
        pure if all (== Solved) statuses then Solved else Unsolved
 
   bad ty = reportDetailedError r "Type cannot be used as a map key"
-             [ "Type:" <+> pp ty
-             , "Map keys cannot contain float or double values."
-             ]
+             [ "Type:" <+> pp ty ]
 
 
 

@@ -1,0 +1,3 @@
+./T088.ddl:2:12--2:74:
+  Type cannot be used as a map key
+    • Type: Builder int

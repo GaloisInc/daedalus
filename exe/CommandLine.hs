@@ -627,7 +627,7 @@ getOptions' args =
 getOptionsFromFile :: FilePath -> IO Options
 getOptionsFromFile file =
   do inp <- readFile file
-     getOptions' (lines inp)
+     getOptions' (filter (not . null) (lines inp))
 
 throwOptError :: [String] -> IO a
 throwOptError err = throwIO (GetOptException err)
