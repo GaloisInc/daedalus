@@ -511,12 +511,18 @@ compilePrim x prim es =
       ty = compileType VM.Owned Core.TInteger
       expr
         | toInteger (minBound :: Int64) <= i && i <= toInteger (maxBound :: Int64) =
-          Rust.callMethod (Rust.litExpr (Rust.intLit' Rust.I64 i)) "into" []
+          intoLiteral Rust.I64
         | 0 <= i && i <= toInteger (maxBound :: Word64) =
-          Rust.callMethod (Rust.litExpr (Rust.intLit' Rust.U64 i)) "into" []
+          intoLiteral Rust.U64
         | otherwise =
           Rust.call (Rust.typeQualifiedExpr ty (Rust.simplePath "from_signed_bytes_be"))
             [Rust.addrOf (Rust.arrExpr [Rust.litExpr (Rust.intLit' Rust.U8 (toInteger b)) | b <- integerToBytes i])]
+      intoLiteral suf = Rust.callMethod receiver "into" []
+        where
+        lit = Rust.litExpr (Rust.intLit' suf i)
+        receiver
+          | i < 0     = Rust.ParenExpr [] lit ()
+          | otherwise = lit
 
     VM.StructCon ut
       | Core.tnameBD nm ->
