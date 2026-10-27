@@ -2,8 +2,9 @@ module Daedalus.VM.Backend.Rust.Type where
 
 import Control.Exception
 import Data.Text qualified as Text
-import Data.List(groupBy)
+import Data.List(groupBy, nub)
 import Data.Map(Map)
+import qualified Data.Map as Map
 
 import Daedalus.Panic(panic)
 import Daedalus.PP
@@ -20,6 +21,7 @@ type FnMsg = ( ?fnMsg :: Doc
              )
 type TyCtx = ( ?tyDecls :: Map Core.TName Core.TDecl
              , ?externalTypes :: ExternalTypes
+             , ?cBindings :: Bool
              )
 
 unsupported :: Doc -> a
@@ -31,6 +33,54 @@ instance Exception Unsupported
 compileUserType :: TyCtx => Rec Core.TDecl -> [Rust.Item ()]
 compileUserType = concatMap compileTDecl . recToList
 
+-- returns ([array_element_type], [(map_key_type, map_value_type)])
+collectBuiltinSpecializationsHelper :: Core.Type -> ([Core.Type], [Core.Type])
+collectBuiltinSpecializationsHelper t =
+  case t of
+    Core.TArray elementType ->
+      let (arrayElementTypes, mapTypes) = collectBuiltinSpecializationsHelper elementType in
+        (t : arrayElementTypes, mapTypes)
+    Core.TMap keyType valType ->
+      let (arrayElementTypes, mapTypes) = collectBuiltinSpecializationsHelper valType in
+        (arrayElementTypes, t : mapTypes)
+    _ -> ([], [])
+
+collectBuiltinSpecializations :: Core.TDecl -> ([Core.Type], [Core.Type])
+collectBuiltinSpecializations typeDecl
+  | not (null (Core.tTParamKNumber typeDecl)) = unsupported "has numeric parameters"
+  | otherwise =
+      case Core.tDef typeDecl of
+        Core.TStruct fields ->
+          let (arrs, maps) = unzip (map (collectBuiltinSpecializationsHelper . snd) fields) in
+            (concat arrs, concat maps)
+        Core.TUnion alternatives ->
+          let (arrs, maps) = unzip (map (collectBuiltinSpecializationsHelper . snd) alternatives) in
+            (concat arrs, concat maps)
+        Core.TBitdata _ _ -> ([], []) -- TODO
+
+getAllBuiltinSpecializations :: [Core.TDecl] -> ([Core.Type], [Core.Type])
+getAllBuiltinSpecializations decls =
+  let (arrs, maps) = unzip (map collectBuiltinSpecializations decls) in
+    (nub (concat arrs), nub (concat maps))
+
+compileBuiltinSpecializations :: Core.MName -> [Core.TDecl] -> [Rust.Item ()]
+compileBuiltinSpecializations name decls =
+  let (arrs, maps) = getAllBuiltinSpecializations decls in
+    concatMap (compileBuiltinAccessors name) arrs
+
+compileBuiltinAccessors :: Core.MName -> Core.Type -> [Rust.Item ()]
+compileBuiltinAccessors name ty =
+  case ty of
+    Core.TArray elementType -> callArrMacro elementType
+    _ -> []
+  where
+    callArrMacro et =
+      [Rust.callMacroItem' (Rust.simplePath "array_accessors") (macroArgs et) | Core.mNameText name /= "Daedalus"]
+    macroArgs et = let
+      ?fnMsg = backticks (pp ty)
+      ?externalTypes = Map.empty
+      in Rust.tyToTokenStream (compileType VM.Owned et)
+
 compileTDecl :: TyCtx => Core.TDecl -> [Rust.Item ()]
 compileTDecl td
   | not (null (Core.tTParamKNumber td)) = notYet "has numeric parameters"
@@ -38,7 +88,8 @@ compileTDecl td
     let ?fnMsg = pp tn in
     case Core.tDef td of
       Core.TStruct fs ->
-        [ Rust.mkStruct der Rust.PublicV (nm isRec) gen
+        [ Rust.mkStructWithAttrs accessorAttrs
+            accessorDerives Rust.PublicV (nm isRec) gen
             [ (compileFieldLabel l, compileType VM.Owned t) | (l,t) <- fs ]
         , makeSerializeStruct as (nm isRec) fs
         , if isRec
@@ -49,7 +100,8 @@ compileTDecl td
               tyDecl "by_ref"
         ]
       Core.TUnion fs ->
-        [ Rust.mkEnum unionDer Rust.PublicV (nm isRec) gen
+        [ Rust.mkEnumWithAttrs variantAttrs
+            variantDerives Rust.PublicV (nm isRec) gen
             [ (compileConLabel l, [ compileType VM.Owned t | not (Core.isUnit t) ])
             | (l,t) <- fs ]
         , makeSerializeEnum as (nm isRec) fs
@@ -108,13 +160,13 @@ compileTDecl td
                     | w <= 32 = "32"
                     | otherwise = "64"
                   num n = Rust.intToken' (show n ++ "u" ++ suff)
-                  
+
               in
               [
                  Rust.mkEnum [] Rust.PublicV (nm True) Rust.noGenerics $
                   (bdJunkName, []) :
                   [ (compileConLabel l, [compileType VM.Owned t]) | (l,t) <- cons ],
-                
+
                 mac "bitdata_case" $
                   Rust.tyToken rty : Rust.identToken (nm True) :
                   [ tup (num msk :
@@ -125,12 +177,22 @@ compileTDecl td
                     ])
                   | (msk, alts) <- opts
                   ]
-                  
+
               ]
 
-      
+
   where
   der = ["Clone","PartialEq","Eq","PartialOrd","Ord"]
+  accessorDerives = der ++ ["Accessors" | ?cBindings]
+  accessorAttrs =
+    [ Rust.helperAttribute "accessors" "boxed"
+    | ?cBindings, isRec
+    ]
+  variantDerives = unionDer ++ ["Variants" | ?cBindings]
+  variantAttrs =
+    [ Rust.helperAttribute "variants" "boxed"
+    | ?cBindings, isRec
+    ]
   unionDer =
     case Core.tDef td of
       Core.TUnion fs
@@ -198,7 +260,7 @@ compileType own ty =
 
     Core.TMaybe t           -> Rust.pathType (Rust.pathWithTypes [ddlModName, "Maybe"] [compileType own t])
     Core.TMap tk tv         -> maybeB "Map" "MapB" [tk,tv]
-    Core.TIterator t        -> 
+    Core.TIterator t        ->
       case t of
         Core.TArray el  -> maybeB "ArrayIterator" "ArrayIteratorB" [el]
         Core.TMap tk tv -> maybeB "MapIterator" "MapIteratorB" [tk,tv]

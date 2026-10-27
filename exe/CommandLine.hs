@@ -76,6 +76,7 @@ data Options =
           , optFileRoot :: String
           , optVM_do_mm :: Bool -- ^ Should we do memomry management in VM
           , optUserNS :: String
+          , optSaveGluefactory :: Bool  -- ^ Should we generate the gluefactory files
           , optSaveRTS :: Bool  -- ^ Should we generate the RTS files
           , optExternMods :: Map Text String
             -- ^ maps an external module to its backend-specific qualifier
@@ -90,8 +91,12 @@ data Options =
             -- 'Nothing' means no detailed errors, `Just` contains
             -- the directory where we should save stuff
 
+          , optCBindings :: Bool  -- ^ Should we generate a native Rust library or C-compatible shared/static libraries
+          
           , optRTSPath :: Maybe FilePath
             -- ^ Path to the RTS (runtime system)
+          , optGluefactoryPath :: Maybe FilePath
+            -- ^ Path to the gluefactory (C compatability layer)
 
           , optParams :: [String]
           } deriving Show
@@ -138,8 +143,11 @@ defaultOptions =
           , optModulePath = []
           , optDetailedErrors = Nothing
           , optRTSPath = Nothing
+          , optCBindings = False
+          , optGluefactoryPath = Nothing
           , optUseLazyStream = False
           , optVM_do_mm = True
+          , optSaveGluefactory = False
           , optSaveRTS = False
           }
 
@@ -428,7 +436,11 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
       , Option [] ["rts-path"]
         "Path to the Daedalus RTS"
         $ ReqArg "PATH" \s o -> Right o { optRTSPath = Just s }
-
+        
+      , Option [] ["save-gluefactory"]
+        "Also generate the source code for the Daedalus C-to-rust gluefactory."
+        $ NoArg \o -> Right o { optSaveGluefactory = True }
+          
       , Option [] ["save-rts"]
         "Also generate the source code for the Daedalus RTS."
         $ NoArg \o -> Right o { optSaveRTS = True }
@@ -449,6 +461,14 @@ cmdCompileRustOptions = (\o -> o { optCommand = CompileRust }, opts)
       , Option [] ["user-fun"]
         "Define external functions by calling QUAL::function"
         $ ReqArg "QUAL" \s o -> Right o { optUserFun = Just s }
+
+      , Option [] ["c-bindings"]
+        "Generate static and shared libraries with C bindings, rather than a native Rust library"
+        $ NoArg \o -> Right o { optCBindings = True }
+        
+      , Option [] ["glue-path"]
+        "Path to the gluefactory crate"
+        $ ReqArg "PATH" \s o -> Right o { optGluefactoryPath = Just s }
 
       , Option [] ["extern"]
         "Use types from MODULE under the Rust path ROOT::MODULE."

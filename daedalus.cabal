@@ -60,8 +60,12 @@ extra-source-files:
   rts-c/ddl/dex.h
   rts-c/ddl/map.h
   rts-c/ddl/parser.h
+  gluefactory/Cargo.toml
+  gluefactory/src/lib.rs
   rts-rust/Cargo.toml
   rts-rust/src/array.rs
+  rts-rust/src/exception.rs
+  rts-rust/src/tuple.rs
   rts-rust/src/map.rs
   rts-rust/src/map_iterators.rs
   rts-rust/src/maybe.rs
