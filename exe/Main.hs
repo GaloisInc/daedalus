@@ -37,6 +37,7 @@ import Daedalus.CompileHS(hsIdentMod)
 import Daedalus.Type.AST(TCModule(..),TCDecl(..),TCDeclDef(..))
 import Daedalus.Type.Monad(TypeWarning(..))
 import Daedalus.Type.Pretty(ppTypesWith)
+import Daedalus.Panic (panic)
 import Daedalus.ParserGen as PGen
 import qualified Daedalus.Core as Core
 import qualified Daedalus.Core.Semantics.Decl as Core
@@ -280,7 +281,10 @@ interpVM :: Options -> ModuleName -> Maybe FilePath -> Daedalus ()
 interpVM opts mm inpMb =
  do r <- doToVM opts mm
     inp  <- ddlIO (RTS.newInputFromFile inpMb)
-    let entries = VM.semModule (head (VM.pModules r))
+    let md = case VM.pModules r of
+          [] -> panic "interpVM" ["empty pModules in Program"]
+          (m:_) -> m
+    let entries = VM.semModule md
     let ?opts = opts
     for_ (Map.elems entries) \impl ->
         do let values = VM.resultToValues (impl [VStream inp])
@@ -364,10 +368,17 @@ generateRust opts mm =
     when (isJust (optRustOutputFile opts) && optSaveRTS opts) $
       ddlIO $ throwOptError
         [ "`--save-rts` does not apply when using `--output-file`." ]
+    when (isJust (optRustOutputFile opts) && optCBindings opts) $
+      ddlIO $ throwOptError
+        [ "`--c-bindings` does not apply when using `--output-file`." ]
+    when (isJust (optGluefactoryPath opts) && not (optCBindings opts)) $
+      ddlIO $ throwOptError
+        [ "`--glue-path` does not apply when not using `--c-bindings`." ]
 
     prog <- doToVM opts { optVM_do_mm = True } mm
     let cfg = Rust.Config
                 { Rust.cfgUserState = optUserState opts
+                , Rust.cfgGenCBindings = optCBindings opts
                 , Rust.cfgExtraImports = optExtraImport opts
                 , Rust.cfgUserFun = optUserFun opts
                 , Rust.cfgExternal = optExternMods opts
@@ -393,45 +404,101 @@ generateRust opts mm =
                 rtsPath = if optSaveRTS opts
                            then "rts-rust"
                            else fromMaybe "../rts-rust" (optRTSPath opts)
+                gluefactoryPath = if optSaveGluefactory opts
+                                  then "gluefactory"
+                                  else fromMaybe "../gluefactory" (optGluefactoryPath opts)
                 rtsFeatures
                   | optErrorStacks opts = ["detailed-errors"::String]
                   | otherwise = []
             createDirectoryIfMissing True dir
             createDirectoryIfMissing True src
-            -- XXX: The configuration is just temporary for testing
-            writeFile (dir </> "Cargo.toml") $ unlines
-              [ "[package]",
-                "name = " ++ show nm,
-                "version = \"0.1.0\"",
-                "edition = \"2024\"",
-                "",
-                "[dependencies]",
-                "daedalus-rts-rust = { path = " ++ show rtsPath ++ ", features = " ++ show rtsFeatures ++ " }",
-                "serde = { version = \"1.0\" }"
-              ]
+            
+            when (isNothing (optRustOutputFile opts)) $
+              do
+                when (optCBindings opts) $
+                  do
+                    writeFile (dir </> "build.rs") $ unlines
+                      [ "use std::fs;"
+                        ,"use std::path::Path;"
+                        ,"use filetime;"
+                        ,""
+                        ,"fn main() {"
+                        ,"    vec![\"parser_bindings.h\", \"parser_types.h\"].iter().for_each(|n| {"
+                        ,"        let file_path = Path::new(&n);"
+                        ,""
+                        ,"        if file_path.exists() {"
+                        ,"           let _ = fs::remove_file(&file_path);"
+                        ,"        }"
+                        ,"    });"
+                        ,"    println!(\"cargo:rerun-if-changed=FORCE_REBUILD_NON_EXISTENT_FILE\");"
+                        ,""
+                        ,"    let macro_call_file = \"src/lib.rs\";"
+                        ,"    if std::path::Path::new(macro_call_file).exists() {"
+                        ,"        let now = filetime::FileTime::now();"
+                        ,"        filetime::set_file_times(macro_call_file, now, now).unwrap();"
+                        ,"    }"
+                        ,"}"
+                      ]
+                writeFile (dir </> "Cargo.toml") $ unlines
+                  if (optCBindings opts) then
+                    [ "[package]",
+                      "name = " ++ show nm,
+                      "version = \"0.1.0\"",
+                      "edition = \"2024\"",
+                      "",
+                      "[dependencies]",
+                      "daedalus-rts-rust = { path = " ++ show rtsPath ++ ", features = " ++ show rtsFeatures ++ " }",
+                      "gluefactory = { path = " ++ show gluefactoryPath ++ " }",
+                      "serde = { version = \"1.0\" }",
+                      "",
+                      "[build-dependencies]",
+                      "filetime = \"0.2\"",
+                      "",
+                      "[lib]",
+                      "crate-type = [\"cdylib\", \"staticlib\"]",
+                      "",
+                      "[profile.release]",
+                      "panic = \"abort\""
+                    ]
+                  else 
+                    [ "[package]",
+                      "name = " ++ show nm,
+                      "version = \"0.1.0\"",
+                      "edition = \"2024\"",
+                      "",
+                      "[dependencies]",
+                      "daedalus-rts-rust = { path = " ++ show rtsPath ++ ", features = " ++ show rtsFeatures ++ " }",
+                      "serde = { version = \"1.0\" }"
+                    ]
+                  
+                  
             createDirectoryIfMissing True src
             writeFile (src </> "lib.rs") rust
-
-
-            when (isNothing (optUserState opts)) $
+            
+            when ((isNothing (optUserState opts)) && (not (optCBindings opts))) $
               do
                 let (entryModule, entryName) = driverEntry
-                    entryPath =
+                let entryPath =
                       nm ++ "::" ++
                       Rust.compileModuleName entryModule ++ "::" ++
                       Rust.compileEntryName entryName
-                writeFile (src </> "main.rs") $ unlines
-                  [ "use daedalus_rts_rust as ddl;"
-                  , "pub fn main() { ddl::test_parser(" ++ entryPath ++ ") }"
-                  ]
-
+                writeFile (src </> "main.rs") $ unlines [ "use daedalus_rts_rust as ddl;","pub fn main() { ddl::test_parser(" ++ entryPath ++ ") }" ]
+            
             when (optSaveRTS opts) $
               do let save (x,b) =
-                       do let d = dir </> "rts-rust" </> takeDirectory x
-                          createDirectoryIfMissing True d
-                          BS.writeFile (dir </> "rts-rust" </> x) b
+                       do
+                         let d = dir </> "rts-rust" </> takeDirectory x
+                         createDirectoryIfMissing True d
+                         BS.writeFile (dir </> "rts-rust" </> x) b
                  mapM_ save rust_rts_files
-
+            
+            when (optSaveGluefactory opts) $
+              do let save (x,b) =
+                       do let d = dir </> "gluefactory" </> takeDirectory x
+                          createDirectoryIfMissing True d
+                          BS.writeFile (dir </> "gluefactory" </> x) b
+                 mapM_ save gluefactory_files
+                
 generateCPP :: Options -> ModuleName -> Daedalus ()
 generateCPP opts mm =
   do let makeExe = null (optEntries opts) && isNothing (optUserState opts) &&

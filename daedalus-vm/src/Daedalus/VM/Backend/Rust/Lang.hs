@@ -18,6 +18,7 @@ import Language.Rust.Data.Ident
 import Language.Rust.Data.Position
 import Language.Rust.Pretty
 import Daedalus.Panic
+import Language.Rust.Parser qualified as RustParser
 
 --------------------------------------------------------------------------------
 -- Paths
@@ -209,7 +210,6 @@ continue = expr (Continue [] Nothing ())
 continueLab :: String -> Stmt ()
 continueLab l = expr (Continue [] (Just (Label l ())) ())
 
-
 ret_ :: Stmt ()
 ret_ = expr_ (Ret [] Nothing ())
 
@@ -329,6 +329,18 @@ addrOfMut :: Expr () -> Expr ()
 addrOfMut e = AddrOf [] Mutable e ()
 
 
+callMacroItem :: Path () -> [Expr ()] -> Item ()
+callMacroItem m es = callMacroItem' m args
+  where
+  args = Stream (intersperse tokComma (map exprToken es))
+
+callMacroItem' :: Path () -> TokenStream -> Item ()
+callMacroItem' m args = MacItem [] (mac m args) ()
+
+ifExpr :: Expr () -> Block () -> Expr ()
+ifExpr cond ifblock =
+  If [] cond ifblock Nothing ()
+
 callMacro :: Path () -> [Expr ()] -> Expr ()
 callMacro m es = callMacro' m args
   where
@@ -437,6 +449,10 @@ inlineAlwaysAttribute :: Attribute ()
 inlineAlwaysAttribute =
   Attribute Outer (simplePath "inline") (parenTokens [identToken "always"]) ()
 
+helperAttribute :: Ident -> Ident -> Attribute ()
+helperAttribute attrName setting =
+  Attribute Outer (simplePath attrName) (parenTokens [identToken setting]) ()
+
 macDecl :: Mac () -> Item ()
 macDecl m = MacItem [] m ()
 
@@ -447,6 +463,24 @@ mkMod ::
   [Item ()] ->
   Item ()
 mkMod attrs vis nm items = Mod attrs vis nm (Just items) ()
+
+mkFnItem' ::
+  Maybe Text        {- ^ Documentation -} ->
+  [Ident]           {- ^ Disable these warnings -} ->
+  [Attribute ()]    {- ^ Extra attributes -} ->
+  Visibility ()     {- ^ Is this visible -} ->
+  Ident             {- ^ Name -} ->
+  Generics () -> [(Ident, Ty ())] -> Maybe (Ty ()) ->
+  Block () ->  Item ()
+mkFnItem' mbDoc allow extraAttrs vis nm generics params returnTy body =
+  Fn attrs vis nm decl fnHdr generics body ()
+  where
+    attrs           = docAttrs ++ noWarnAttrs ++ extraAttrs
+    noWarnAttrs     = map disableWarning allow
+    docAttrs        = maybeToList (docAttribute <$> mbDoc)
+    fnHdr           = FnHeader Normal NotAsync NotConst Rust ()
+    mkArg (n, t)    = Arg [] (Just (identPat n)) t ()
+    decl            = FnDecl (mkArg <$> params) returnTy False ()
 
 mkFnItem ::
   Maybe Text        {- ^ Documentation -} ->
@@ -467,20 +501,42 @@ mkFnItem mbDoc allow extraAttrs vis nm generics params returnTy body =
     decl            = FnDecl (mkArg <$> params) (Just returnTy) False ()
 
 mkEnum :: [Ident] -> Visibility () -> Ident -> Generics () -> [(Ident,[Ty ()])] -> Item ()
-mkEnum der vis nm gs cons = Enum derA vis nm (map mkCon cons) gs ()
+mkEnum = mkEnumWithAttrs []
+
+mkEnumWithAttrs ::
+  [Attribute ()] -> [Ident] -> Visibility () -> Ident -> Generics () ->
+  [(Ident,[Ty ()])] -> Item ()
+mkEnumWithAttrs extraAttrs der vis nm gs cons =
+  Enum (derA ++ extraAttrs) vis nm (map mkCon cons) gs ()
   where
   mkCon (i,ts)  = Variant i [] (if null ts then UnitD () else TupleD (map anon ts) ()) Nothing ()
   anon t        = StructField Nothing InheritedV t [] ()
   derA          = if null der then [] else [deriveAttribute der]
 
 mkStruct :: [Ident] -> Visibility () -> Ident -> Generics () -> [(Ident,Ty ())] -> Item ()
-mkStruct der vis nm gs flds = StructItem derA vis nm (StructD fs ()) gs ()
+mkStruct = mkStructWithAttrs []
+
+mkStructWithAttrs ::
+  [Attribute ()] -> [Ident] -> Visibility () -> Ident -> Generics () ->
+  [(Ident,Ty ())] -> Item ()
+mkStructWithAttrs extraAttrs der vis nm gs flds =
+  StructItem (derA ++ extraAttrs) vis nm (StructD fs ()) gs ()
   where
   fs = [ StructField (Just x) vis t [] () | (x,t) <- flds ]
   derA          = if null der then [] else [deriveAttribute der]
 
 mkTySyn :: Visibility () -> Ident -> Generics () -> Ty () -> Item ()
 mkTySyn vis nm gen def = TyAlias [] vis nm def gen ()
+
+
+tyToTokenStream :: Ty () -> TokenStream
+tyToTokenStream ty =
+  let
+    rustCode = show (pretty' ty)
+    inputStr = RustParser.inputStreamFromString rustCode
+  in
+    RustParser.parse' inputStr
+
 --------------------------------------------------------------------------------
 -- Names
 --------------------------------------------------------------------------------

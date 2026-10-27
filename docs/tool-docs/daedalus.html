@@ -53,7 +53,10 @@
 <li class="toctree-l3"><a class="reference internal" href="#flags">Flags</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#command-compile-hs">Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#command-compile-hs">Command: <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Flags</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#command-compile-c">Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#generated-files">Generated Files</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#compile-cpp-flags">Flags</a></li>
@@ -115,9 +118,27 @@
 </pre></div>
 </div>
 <p>The command prints information about the types and parsers defined by
-the given specification.  For example:</p>
-<div class="literal-block-wrapper docutils container" id="id4">
-<div class="code-block-caption"><span class="caption-text">Sample output for <code class="docutils literal notranslate"><span class="pre">show-types</span></code></span><a class="headerlink" href="#id4" title="Link to this code"></a></div>
+the given specification.  If type checking fails, the command still prints
+declarations that were successfully type checked before the error.
+The type error is reported and the command exits unsuccessfully as usual.</p>
+<p>The output may be filtered with the following options:</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">--externals</span></code></dt><dd><p>Show only declarations without a definition.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">--name</span> <span class="pre">NAME</span></code></dt><dd><p>Show only the declaration named <code class="docutils literal notranslate"><span class="pre">NAME</span></code>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">--module</span> <span class="pre">MODULE</span></code></dt><dd><p>Show declarations from the named module instead of the module containing
+the input file.  The module must be imported, directly or indirectly, by
+the input specification.</p>
+</dd>
+</dl>
+<p>The options may be combined.  For example, this shows the type of the external
+declarations in module <code class="docutils literal notranslate"><span class="pre">Primitives</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>..<span class="w"> </span>daedalus<span class="w"> </span>show-types<span class="w"> </span>--module<span class="w"> </span>Primitives<span class="w"> </span>--externals
+</pre></div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">Sample output for <code class="docutils literal notranslate"><span class="pre">show-types</span></code></span><a class="headerlink" href="#id5" title="Link to this code"></a></div>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Types
 ======
 
@@ -227,20 +248,66 @@ polymorphic) and it should not have any parameters, implicit or explicit.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>compile-hs<span class="w"> </span>MyParserSpec.ddl<span class="w"> </span>--out-dir<span class="o">=</span>some_dir_name
 </pre></div>
 </div>
-<p>The result is a directory populated with a Haskell module containing
-definitions for the parsers and functions defined in the specification.
-In addition, the DaeDaLus compiler will generate a sample executable
-driver and Cabal package description for easy prototyping. To use the
-generated code you’ll have to compile it with the <code class="docutils literal notranslate"><span class="pre">rts-hs</span></code> package
-provided in this distribution.</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>At present the command <code class="docutils literal notranslate"><span class="pre">compile-hs</span></code> uses the <em>old</em> Haskell backend which
-may go away in future.  To use the new backend, which is actively
-maintained, please use Template Haskell.   If there is demand, we may adapt
-the new backend to generate explicit Haskell files, in which case this
-command will start using the new backend.</p>
+<p>Generates a small Cabal application consisting of a <code class="docutils literal notranslate"><span class="pre">Main.hs</span></code> and a
+Cabal package file.  The generated <code class="docutils literal notranslate"><span class="pre">Main.hs</span></code> uses Template Haskell to load
+the DaeDaLus specification and compile it through the VM pipeline when the
+application is built.</p>
+<p>The generated application expects a parser named <code class="docutils literal notranslate"><span class="pre">Main</span></code> with a fixed result
+type and no parameters.  It accepts an optional input filename and writes the
+result, or a parse error, as JSON:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>some_dir_name
+cabal<span class="w"> </span>build
+cabal<span class="w"> </span>run<span class="w"> </span>some_dir_name<span class="w"> </span>--<span class="w"> </span>input.bin
+</pre></div>
 </div>
+<p>If no input filename is provided, the parser is run on an empty input.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The Haskell project is not self-contained at build time.  Its Template
+Haskell splice requires the <code class="docutils literal notranslate"><span class="pre">daedalus</span></code>, <code class="docutils literal notranslate"><span class="pre">rts-vm-hs</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">rts-hs-data</span></code> Haskell packages to be available to Cabal.  Having only a
+standalone <code class="docutils literal notranslate"><span class="pre">daedalus</span></code> executable is not sufficient.</p>
+<p>The generated directory does not contain a <code class="docutils literal notranslate"><span class="pre">cabal.project</span></code>.  When local
+source checkouts of the Daedalus packages are needed, create a project file
+that lists the generated package and those source packages.</p>
+<p>The original specification and any imported DaeDaLus modules must also
+remain available while the generated application is being built.  Once
+built, the resulting executable does not need the compiler packages or the
+specification at runtime.</p>
+</div>
+<section id="id1">
+<h2>Flags<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
+<dd><p>Save the generated files in the given directory.  This option is required
+when generating the VM Haskell application.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--vm</span></span></dt>
+<dd><p>Explicitly select the VM Haskell backend.  This is the default.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--old</span></span></dt>
+<dd><p>Use the legacy Haskell backend.  This generates Haskell parser modules,
+a sample driver, and a Cabal package description using <code class="docutils literal notranslate"><span class="pre">rts-hs</span></code>.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--no-error-stack</span></span></dt>
+<dd><p>Disable grammar call stacks and source locations in parse errors generated
+by the VM Haskell backend.  Error tracking remains enabled, but produces
+less detailed output with lower runtime overhead.</p>
+</dd></dl>
+
+<p>The VM-generated driver currently supports only the default <code class="docutils literal notranslate"><span class="pre">Main</span></code> entry
+point; it may not be combined with <code class="docutils literal notranslate"><span class="pre">--entry</span></code>.</p>
+</section>
 </section>
 <section id="command-compile-c">
 <h1>Command: <code class="docutils literal notranslate"><span class="pre">compile-c++</span></code><a class="headerlink" href="#command-compile-c" title="Link to this heading"></a></h1>
@@ -272,7 +339,7 @@ of any kind—if this is not the case, the sample driver will fail to compile.</
 </div></blockquote>
 </section>
 <section id="compile-cpp-flags">
-<span id="id1"></span><h2>Flags<a class="headerlink" href="#compile-cpp-flags" title="Link to this heading"></a></h2>
+<span id="id2"></span><h2>Flags<a class="headerlink" href="#compile-cpp-flags" title="Link to this heading"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
@@ -341,9 +408,9 @@ Specifying an entry point will disable the generation of a sample driver
 executable.  The name of the C++ function corresponding to DaeDaLus
 declaration <code class="docutils literal notranslate"><span class="pre">F</span></code> is <code class="docutils literal notranslate"><span class="pre">parseF</span></code>.  The entry point should have a fixed
 type, but MAY have argument.</p>
-<div class="literal-block-wrapper docutils container" id="id5">
+<div class="literal-block-wrapper docutils container" id="id6">
 <div class="code-block-caption"><span class="caption-text">Sample entry point for parser <code class="docutils literal notranslate"><span class="pre">Main</span></code> with no extra arguments,
-returning a semantic value of type <code class="docutils literal notranslate"><span class="pre">T</span></code>.</span><a class="headerlink" href="#id5" title="Link to this code"></a></div>
+returning a semantic value of type <code class="docutils literal notranslate"><span class="pre">T</span></code>.</span><a class="headerlink" href="#id6" title="Link to this code"></a></div>
 <div class="highlight-C++ notranslate"><div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">parseMain</span><span class="w"> </span><span class="p">(</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">ParseError</span><span class="w"> </span><span class="o">&amp;</span><span class="n">error</span>
 <span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">results</span>
 <span class="w">               </span><span class="p">,</span><span class="w"> </span><span class="n">DDL</span><span class="o">::</span><span class="n">Input</span><span class="w">      </span><span class="n">input</span>
@@ -414,8 +481,10 @@ the <code class="docutils literal notranslate"><span class="pre">--out-dir</span
 <p>The result is a directory containing a complete Rust crate with the generated
 parser and type definitions. The generated code uses the Daedalus Rust runtime
 system (RTS), which provides core parsing functionality.</p>
+<p>When integrating a parser into an existing Rust crate, use <code class="docutils literal notranslate"><span class="pre">--output-file</span></code>
+to generate just a Rust source module instead of a complete crate.</p>
 <section id="compile-rust-generated-files">
-<span id="id2"></span><h2>Generated Files<a class="headerlink" href="#compile-rust-generated-files" title="Link to this heading"></a></h2>
+<span id="id3"></span><h2>Generated Files<a class="headerlink" href="#compile-rust-generated-files" title="Link to this heading"></a></h2>
 <dl class="simple">
 <dt>The compiled parser is placed in a standard Rust crate structure:</dt><dd><ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">src/lib.rs</span></code> contains the generated parser implementation and type definitions</p></li>
@@ -424,6 +493,8 @@ system (RTS), which provides core parsing functionality.</p>
 </ul>
 </dd>
 </dl>
+<p>The sample driver is not generated when <code class="docutils literal notranslate"><span class="pre">--user-state</span></code> is specified, because
+constructing the custom state is the responsibility of the embedding program.</p>
 <p>To build the generated parser:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>MyParserSpec
 cargo<span class="w"> </span>build<span class="w"> </span>--release
@@ -432,15 +503,42 @@ cargo<span class="w"> </span>build<span class="w"> </span>--release
 <p>The <code class="docutils literal notranslate"><span class="pre">--save-rts</span></code> flag can be used to include the RTS source code directly
 in the output directory, which is useful for standalone builds that do not
 depend on an external RTS installation.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">--c-bindings</span></code> is specified, the generated crate builds static and
+shared libraries suitable for use by C programs.  Currently, C wrappers are
+supported only for entry parsers without explicit parameters and using the
+default parser state.</p>
 </section>
 <section id="compile-rust-flags">
-<span id="id3"></span><h2>Flags<a class="headerlink" href="#compile-rust-flags" title="Link to this heading"></a></h2>
+<span id="id4"></span><h2>Flags<a class="headerlink" href="#compile-rust-flags" title="Link to this heading"></a></h2>
 <dl class="py data">
 <dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--out-dir=DIRECTORY</span></span></dt>
 <dd><p>Save generated files in the given directory.
 The directory will be created if it does not exist.
 If not specified, a directory name is derived from the input file name.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--output-file=FILE</span></span></dt>
+<dd><p>Save only the generated parser and type definitions as a Rust source file.
+Parent directories are created as needed. No <code class="docutils literal notranslate"><span class="pre">Cargo.toml</span></code>, driver, or
+runtime source is generated.</p>
+<p>This is useful when the parser should be a module in an existing
+application crate. For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>compile-rust<span class="w"> </span>Format.ddl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output-file<span class="o">=</span>src/format.rs<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--entry<span class="o">=</span>Main<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--user-state<span class="o">=</span>crate::native::State<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--user-fun<span class="o">=</span>crate::native
+</pre></div>
+</div>
+<p>The application may then declare <code class="docutils literal notranslate"><span class="pre">mod</span> <span class="pre">format;</span></code> and <code class="docutils literal notranslate"><span class="pre">mod</span> <span class="pre">native;</span></code>.
+Because both are in the same crate, native functions can refer directly to
+types generated in <code class="docutils literal notranslate"><span class="pre">format</span></code>.</p>
+<p>This option may not be combined with <code class="docutils literal notranslate"><span class="pre">--out-dir</span></code>, <code class="docutils literal notranslate"><span class="pre">--rts-path</span></code>,
+<code class="docutils literal notranslate"><span class="pre">--save-rts</span></code>, or <code class="docutils literal notranslate"><span class="pre">--c-bindings</span></code>. The application crate is responsible
+for declaring its dependencies on <code class="docutils literal notranslate"><span class="pre">daedalus-rts-rust</span></code> and <code class="docutils literal notranslate"><span class="pre">serde</span></code>.</p>
 </dd></dl>
 
 <dl class="py data">
@@ -463,6 +561,46 @@ within the output directory.</p>
 
 <dl class="py data">
 <dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--c-bindings</span></span></dt>
+<dd><p>Generate a Rust <code class="docutils literal notranslate"><span class="pre">staticlib</span></code> and <code class="docutils literal notranslate"><span class="pre">cdylib</span></code> with a C-compatible interface
+instead of a native Rust library and sample executable. One C parser wrapper
+is generated for each parser selected with <code class="docutils literal notranslate"><span class="pre">--entry</span></code>; when no entry is
+specified, the default entry is <code class="docutils literal notranslate"><span class="pre">Main</span></code>.</p>
+<p>The generated crate produces two headers when built:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">parser_types.h</span></code> declares opaque parser result and semantic value types.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">parser_bindings.h</span></code> declares parser entry points, accessors, union
+variant queries, and result destructors.</p></li>
+</ul>
+<p>Entry points used with C bindings currently may not have explicit parameters
+or use a custom user state.  Bounded integer results and fields are returned by
+value; structs, unions, arrays, and other compound values are exposed
+through borrowed pointers. A pointer returned by an accessor remains valid
+only while its owning parsed result is alive. Release a successful parse
+result with the <code class="docutils literal notranslate"><span class="pre">free_ParsedNAME</span></code> function.</p>
+<p>This option may not be combined with <code class="docutils literal notranslate"><span class="pre">--output-file</span></code>.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--glue-path=PATH</span></span></dt>
+<dd><p>Specify the path to the <code class="docutils literal notranslate"><span class="pre">gluefactory</span></code> procedural macro crate used to
+generate the C interface. If not specified, the default path is
+<code class="docutils literal notranslate"><span class="pre">../gluefactory</span></code> relative to the output directory. This option applies
+only when <code class="docutils literal notranslate"><span class="pre">--c-bindings</span></code> is used.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--save-gluefactory</span></span></dt>
+<dd><p>Copy the <code class="docutils literal notranslate"><span class="pre">gluefactory</span></code> source into a <code class="docutils literal notranslate"><span class="pre">gluefactory</span></code> subdirectory of the
+generated crate and use that local copy when building C bindings. This is
+useful for a standalone output directory that should not depend on the
+source repository.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--no-error-stack</span></span></dt>
 <dd><p>Disable call stack tracking in parse errors. Without this option,
 the generated code includes grammar stack traces in error messages,
@@ -473,12 +611,56 @@ performance.</p>
 
 <dl class="py data">
 <dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--user-state=STATE_TYPE</span></span></dt>
+<dd><p>Generate parser functions with custom user state of the given Rust type.
+For example, <code class="docutils literal notranslate"><span class="pre">--user-state=MyState</span></code> causes generated parser functions
+to accept <code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">ddl::ParserStateWith&lt;MyState&gt;</span></code> instead of the default
+<code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">ddl::ParserState</span></code>.</p>
+<p>The embedding program should construct the parser state with
+<code class="docutils literal notranslate"><span class="pre">ddl::new_parser_state_with(user_state)</span></code>.  Generated or external parser
+functions may access the state through the public <code class="docutils literal notranslate"><span class="pre">user_state</span></code> field.
+Care should be taken that state updates make sense when a parser
+backtracks.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--add-import=IMPORT</span></span></dt>
+<dd><p>Add <code class="docutils literal notranslate"><span class="pre">use</span> <span class="pre">IMPORT;</span></code> to the generated parser module.  This option may be
+specified multiple times.  It can be used, for example, to bring a custom
+user-state type into scope:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>daedalus<span class="w"> </span>compile-rust<span class="w"> </span>MyParser.ddl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--add-import<span class="o">=</span>my_crate::MyState<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--user-state<span class="o">=</span>MyState
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">IMPORT</span></code> should contain the Rust import specification without the
+leading <code class="docutils literal notranslate"><span class="pre">use</span></code> or trailing semicolon.  Rust import forms such as
+<code class="docutils literal notranslate"><span class="pre">module::Type</span></code>, <code class="docutils literal notranslate"><span class="pre">module::*</span></code>, and <code class="docutils literal notranslate"><span class="pre">module::{TypeA,</span> <span class="pre">TypeB}</span></code> are
+supported.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">--user-fun=QUAL</span></span></dt>
+<dd><p>Provide implementations for external Daedalus functions using native Rust
+functions under the qualifier <code class="docutils literal notranslate"><span class="pre">QUAL</span></code>.  For each external function <code class="docutils literal notranslate"><span class="pre">f</span></code>,
+the generated parser defines an <code class="docutils literal notranslate"><span class="pre">#[inline(always)]</span></code> wrapper that calls
+<code class="docutils literal notranslate"><span class="pre">QUAL::f</span></code>, forwarding the parser state and all function arguments.</p>
+<p>For example, <code class="docutils literal notranslate"><span class="pre">--user-fun=native</span></code> maps an external Daedalus function whose
+generated Rust name is <code class="docutils literal notranslate"><span class="pre">get_value</span></code> to <code class="docutils literal notranslate"><span class="pre">native::get_value</span></code>.  Use
+<code class="docutils literal notranslate"><span class="pre">--add-import</span></code> as needed to bring <code class="docutils literal notranslate"><span class="pre">QUAL</span></code> into scope.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py">
 <span class="sig-name descname"><span class="pre">--entry=[MODULE.]NAME</span></span></dt>
 <dd><p>Declare that the given parser is an entry point for the generated parser.
 The entry point should have a fixed type, but MAY have arguments.
 Multiple entry points can be specified by using this flag multiple times.
 Specifying at least one entry point will disable the generation of the
-sample executable driver.</p>
+sample executable driver. When <code class="docutils literal notranslate"><span class="pre">--c-bindings</span></code> is used, each selected entry
+gets a C wrapper and entries with arguments are not currently supported.</p>
 </dd></dl>
 
 <dl class="py data">

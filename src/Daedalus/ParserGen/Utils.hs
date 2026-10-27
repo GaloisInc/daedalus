@@ -31,14 +31,11 @@ autToGraphviz aut =
               strAct =
                 case act of
                   CAct (Push name _ _) ->
-                    "Push_" ++ tail (removeLast (showName name)) ++ "_q" ++ show n2
+                    "Push_" ++ showName name ++ "_q" ++ show n2
                   _ -> show act
               isDotted = case act of
                          CAct (Push _ _ _) -> True
                          _ -> False
-              removeLast [] = []
-              removeLast [ _ ] = []
-              removeLast (x : xs) = x : removeLast xs
 
 
       in thestr : b

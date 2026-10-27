@@ -117,6 +117,10 @@ instance PP Name where
           pp (ModScope f (i <> "_" <> Text.pack (guidString (nameID x))))
       i -> pp i
 
+instance HasSourcePaths Name where
+  getSourcePaths = getSourcePaths . nameRange
+  mapSourcePaths f x = x { nameRange = mapSourcePaths f (nameRange x) }
+
 -- Name for an implcit parameter.  Note that these are not resolvd like
 -- normal names as they are effectively global.
 data IPName = forall ctx. IPName

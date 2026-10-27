@@ -406,6 +406,11 @@ The ``--save-rts`` flag can be used to include the RTS source code directly
 in the output directory, which is useful for standalone builds that do not
 depend on an external RTS installation.
 
+When ``--c-bindings`` is specified, the generated crate builds static and
+shared libraries suitable for use by C programs.  Currently, C wrappers are
+supported only for entry parsers without explicit parameters and using the
+default parser state.
+
 .. _compile-rust-flags:
 
 Flags
@@ -438,9 +443,9 @@ Flags
   Because both are in the same crate, native functions can refer directly to
   types generated in ``format``.
 
-  This option may not be combined with ``--out-dir``, ``--rts-path``, or
-  ``--save-rts``. The application crate is responsible for declaring its
-  dependencies on ``daedalus-rts-rust`` and ``serde``.
+  This option may not be combined with ``--out-dir``, ``--rts-path``,
+  ``--save-rts``, or ``--c-bindings``. The application crate is responsible
+  for declaring its dependencies on ``daedalus-rts-rust`` and ``serde``.
 
 .. data:: --rts-path=PATH
 
@@ -455,6 +460,42 @@ Flags
   This creates a standalone build that does not depend on an external
   RTS installation. The RTS will be copied to a ``rts-rust`` subdirectory
   within the output directory.
+
+.. data:: --c-bindings
+
+  Generate a Rust ``staticlib`` and ``cdylib`` with a C-compatible interface
+  instead of a native Rust library and sample executable. One C parser wrapper
+  is generated for each parser selected with ``--entry``; when no entry is
+  specified, the default entry is ``Main``.
+
+  The generated crate produces two headers when built:
+
+  * ``parser_types.h`` declares opaque parser result and semantic value types.
+  * ``parser_bindings.h`` declares parser entry points, accessors, union
+    variant queries, and result destructors.
+
+  Entry points used with C bindings currently may not have explicit parameters
+  or use a custom user state.  Bounded integer results and fields are returned by
+  value; structs, unions, arrays, and other compound values are exposed
+  through borrowed pointers. A pointer returned by an accessor remains valid
+  only while its owning parsed result is alive. Release a successful parse
+  result with the ``free_ParsedNAME`` function.
+
+  This option may not be combined with ``--output-file``.
+
+.. data:: --glue-path=PATH
+
+  Specify the path to the ``gluefactory`` procedural macro crate used to
+  generate the C interface. If not specified, the default path is
+  ``../gluefactory`` relative to the output directory. This option applies
+  only when ``--c-bindings`` is used.
+
+.. data:: --save-gluefactory
+
+  Copy the ``gluefactory`` source into a ``gluefactory`` subdirectory of the
+  generated crate and use that local copy when building C bindings. This is
+  useful for a standalone output directory that should not depend on the
+  source repository.
 
 .. data:: --no-error-stack
 
@@ -511,7 +552,8 @@ Flags
   The entry point should have a fixed type, but MAY have arguments.
   Multiple entry points can be specified by using this flag multiple times.
   Specifying at least one entry point will disable the generation of the
-  sample executable driver.
+  sample executable driver. When ``--c-bindings`` is used, each selected entry
+  gets a C wrapper and entries with arguments are not currently supported.
 
 .. data:: --determinize
 

@@ -33,7 +33,7 @@ github:
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 	@failed=0; \
-	for f in $$(find build -name \*.ddl); do \
+	for f in $$(find build -name \*.ddl ! -name \*-template.ddl); do \
 		if ! ../bin/daedalus --path=../lib/ $$f > /dev/null 2>&1; then \
 			echo "FAILED: $$f"; \
 			../bin/daedalus --path=../lib/ $$f 2>&1 | grep -i "error"; \

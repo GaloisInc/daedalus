@@ -27,6 +27,7 @@ import qualified Daedalus.RTS.Input as RTS
 
 import Daedalus.PP
 import Daedalus.Parser.Lexer
+import Daedalus.SourceRange (HasSourcePaths)
 import Daedalus.Value
 import Daedalus.Interp.ErrorTrie(parseErrorTrieToJSON)
 import Daedalus.Interp.DebugAnnot
@@ -122,7 +123,7 @@ doDetailedErr outDir err =
        do BS8.hPutStrLn h "const parseError ="
           BS8.hPutStrLn h (RTS.jsonToBytes (jsGrouped err))
 
-class (RTS.HasSourcePaths e, RTS.HasInputs e, RTS.IsAnnotation e) =>
+class (HasSourcePaths e, RTS.HasInputs e, RTS.IsAnnotation e) =>
   GroupedErr e where
   jsGrouped :: RTS.ParseErrorG e -> RTS.JSON
 

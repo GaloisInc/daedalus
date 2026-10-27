@@ -361,8 +361,9 @@ apSubst' go = go'
         TCCase e pats mdef ->
           TCCase <$> go e <*> traverse doAlt pats <*> traverse go mdef
           where
-            doAlt (TCAlt ps rhs) =
-              TCAlt ps <$> foldr (local . forgetSubst) (go rhs) (patBinds (head ps))
+            doAlt (TCAlt ps rhs) = case ps of
+              [] -> panic "apSubst'" ["empty patterns in TCAlt"]
+              (p:_) -> TCAlt ps <$> foldr (local . forgetSubst) (go rhs) (patBinds p)
 
         e  -> traverseTCF go e
 

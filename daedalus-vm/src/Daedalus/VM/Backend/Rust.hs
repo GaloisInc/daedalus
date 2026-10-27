@@ -8,7 +8,7 @@ module Daedalus.VM.Backend.Rust (
 import Data.Text qualified as Text
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.List(foldl',sortOn)
+import Data.List(foldl',sortOn,intersperse)
 import Data.ByteString qualified as BS
 import Data.Word(Word8,Word64)
 import Data.Int(Int64)
@@ -28,8 +28,10 @@ import Daedalus.VM.BorrowAnalysis
 import Daedalus.VM.Backend.Rust.Type
 import Language.Rust.Parser qualified as RustParser
 
+
 data Config = Config
   { cfgUserState :: Maybe String
+  , cfgGenCBindings :: Bool
   , cfgExtraImports :: [String]
   , cfgUserFun :: Maybe String
   , cfgExternal :: Map Text.Text String
@@ -74,7 +76,7 @@ compileProgram cfg vm = show (Rust.pretty' result)
             ]
     in
     Rust.SourceFile Nothing []
-      [ compileGeneratedModule uses name code
+      [ compileGeneratedModule (cfgGenCBindings cfg) uses name code
       | (name, code) <- collectModules ?externalTypes vm
       ]
 
@@ -83,7 +85,13 @@ compileProgram cfg vm = show (Rust.pretty' result)
     [ Rust.use' unusedOk (Rust.useOne (Rust.simplePath "daedalus_rts_rust") (Just "ddl"))
     , Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "ddl") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Type", "Clo" ] ])
     , Rust.use' unusedOk (Rust.useOne (Rust.simplePath "serde") Nothing)
-    ] ++ map parseRustImport (cfgExtraImports cfg)
+    ]
+    ++ (if (cfgGenCBindings cfg) then
+    -- C/rust glue imports
+    [ Rust.use' unusedOk (Rust.useOne (Rust.simplePath' ["std","slice"]) Nothing)
+    , Rust.use' unusedOk (Rust.useSelect (Rust.simplePath' ["std", "os", "raw"]) [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "c_char", "c_int" ] ])
+    , Rust.use' unusedOk (Rust.useSelect (Rust.simplePath "gluefactory") [ Rust.useOne x Nothing | x <- map Rust.simplePath [ "Accessors","Variants","make_parser_main","array_accessors" ] ])
+    ] else []) ++ map parseRustImport (cfgExtraImports cfg)
   (funSigs,blockSigs) = foldl' sigsOfMod (mempty,mempty) (VM.pModules vm)
 
   sigsOfMod s m = foldl' sigsOfFun s (VM.moduleFuns m)
@@ -100,7 +108,7 @@ compileProgram cfg vm = show (Rust.pretty' result)
             Nothing ->
               panic "compileProgram"
                 ["Missing entry block for", show (pp (VM.vmfName f))]
-        
+
   sigsOfBlock bs b  = Map.insert (VM.blockName b) (getSig (VM.blockArgs b)) bs
   getSig            = map VM.getOwnership
 
@@ -151,18 +159,76 @@ funGroupModule group =
 
 compileGeneratedModule ::
   ProgCtx =>
+  Bool -> 
   [Rust.Item ()] ->
   Core.MName ->
   ModuleCode ->
   Rust.Item ()
-compileGeneratedModule uses name code =
+compileGeneratedModule cBindings uses name code =
+  let ?cBindings = cBindings in
   Rust.mkMod
     [Rust.disableWarning "nonstandard_style"]
     Rust.PublicV
     (compileMName name)
     (uses ++
+     (if cBindings then
+       ffiError ++
+       setFfiError ++
+       parserMainMacros ++
+       builtinAccessors
+      else []) ++
      concatMap (compileUserType . NonRec) (reverse (moduleTypes code)) ++
      concatMap compileFunGroup (reverse (moduleFuns code)))
+ where
+   ffiError = [Rust.Enum [repri32Attr] Rust.PublicV (Rust.mkIdent "FfiError") ffiFields Rust.noGenerics ()]
+   parserMainMacros = map compileEntryMacro entries
+   entries =
+     [ fun
+     | fun <- forgetRecs (moduleFuns code)
+     , VM.vmfIsEntry fun
+     ]
+   compileEntryMacro fun
+     | not (entryHasNoArgs fun) =
+         unsupported (backticks (pp (VM.vmfName fun)) <+>
+                      "has parameters, which are not supported by C bindings")
+     | otherwise =
+         let ?fnMsg = backticks (pp fnm)
+         in Rust.callMacroItem'
+              (Rust.simplePath "make_parser_main")
+              (Rust.commaList
+                [ Rust.tyToken (compileType VM.Owned (Core.fnameType fnm))
+                , Rust.identToken (compileFName fnm)
+                ])
+     where
+     fnm = VM.vmfName fun
+   entryHasNoArgs fun =
+     case VM.vmfDef fun of
+       VM.VMDef body ->
+         case Map.lookup (VM.vmfEntry body) (VM.vmfBlocks body) of
+           Just entryBlock -> length (VM.blockArgs entryBlock) == 1
+           Nothing -> False
+       VM.VMExtern args -> length args == 1
+   builtinAccessors = compileBuiltinSpecializations name (moduleTypes code)
+   repri32Attr = Rust.Attribute Rust.Inner (Rust.simplePath "repr") toks ()
+   toks = Rust.Tree
+     $ Rust.Delimited Rust.dummySpan Rust.Paren
+     $ Rust.Stream
+     $ intersperse Rust.tokComma [ Rust.Tree (Rust.Token Rust.dummySpan (Rust.IdentTok i)) | i <- [Rust.mkIdent "i32"] ]
+   ffiFields = [
+     Rust.Variant (Rust.mkIdent "Ok") [] (Rust.UnitD ()) (Just (Rust.litExpr (Rust.intLit 0))) ()
+     , Rust.Variant (Rust.mkIdent "ParseError") [] (Rust.UnitD ()) (Just (Rust.litExpr (Rust.intLit 1))) ()
+     , Rust.Variant (Rust.mkIdent "InvalidPtr") [] (Rust.UnitD ()) (Just (Rust.litExpr (Rust.intLit 2))) ()
+     , Rust.Variant (Rust.mkIdent "InvalidIndex") [] (Rust.UnitD ()) (Just (Rust.litExpr (Rust.intLit 3))) ()
+     , Rust.Variant (Rust.mkIdent "InvalidLength") [] (Rust.UnitD ()) (Just (Rust.litExpr (Rust.intLit 4))) ()
+     ]
+   setFfiError = [Rust.mkFnItem' Nothing [] [] Rust.CrateV (Rust.mkIdent "set_error") Rust.noGenerics setErrorArgs Nothing setErrorBody]
+   setErrorArgs = [(Rust.mkIdent "err_ptr", Rust.Ptr Rust.Mutable (Rust.simpleType $ Rust.mkIdent "c_int") ()), (Rust.mkIdent "code", Rust.simpleType $ Rust.mkIdent "FfiError")]
+   setErrorBody = Rust.block [Rust.expr $ Rust.BlockExpr [] (Rust.Block [Rust.expr $
+     Rust.ifExpr (Rust.Unary [] Rust.Not (Rust.callMethod (Rust.identExpr "err_ptr") (Rust.mkIdent "is_null") []) ()) (
+         Rust.block [Rust.expr $ Rust.Assign []
+                    (Rust.Unary [] Rust.Deref (Rust.identExpr "err_ptr") ())
+                    (Rust.Cast [] (Rust.identExpr "code") (Rust.simpleType $ Rust.mkIdent "c_int") ()) ()])
+         ] Rust.Unsafe ()) Nothing ()]
 
 compileFunGroup :: ProgCtx => Rec VM.VMFun -> [Rust.Item ()]
 compileFunGroup r =
@@ -435,7 +501,7 @@ compilePrim x prim es =
       def ty (callRTS "new_byte_array" [Rust.litExpr (Rust.bytesLit bs)])
         where ty = if BS.null bs then Just (compileType VM.Owned (Core.TArray Core.TByte)) else Nothing
 
-    VM.NewBuilder ty -> 
+    VM.NewBuilder ty ->
       def (Just (compileType VM.Owned (Core.TBuilder ty))) (callRTS "new_builder" [])
 
     VM.Integer i
@@ -469,7 +535,7 @@ compilePrim x prim es =
                         case Core.bdFieldType f of
                           Core.BDWild -> addData more args
 
-                          Core.BDTag n -> 
+                          Core.BDTag n ->
                             Rust.tupleExpr
                               [ Rust.litExpr (Rust.intLit (toInteger (Core.bdOffset f)))
                               , compileNumLit n (Core.TUInt (Core.TSize (toInteger (Core.bdWidth f))))
@@ -495,14 +561,14 @@ compilePrim x prim es =
           def Nothing (mkBox (Rust.struct (compileTPath isRec nm)
               [ (compileFieldLabel l, e) | (l,e) <- zip ls compiled ]))
         _ -> panic "compilePrim" ["StructCon bad flavor"]
-      
+
       where
       nm = Core.utName ut
       isRec = Core.tnameRec nm
       mkBox
         | isRec = \val -> callRTS "new" [val]
         | otherwise = id
-    
+
     VM.Op1 op ->
       case (compiled,es) of
         ([e1],[e]) -> compileOp1 x op e1 (VM.getType e)
@@ -520,12 +586,12 @@ compilePrim x prim es =
         _          -> bad 3
 
     VM.OpN op -> compileOpN x op compiled
-  
+
   where
   compiled  = zipWith compileExpr (modePrimName prim) es
   bad n     = panic "compilePrim" ["Expected " ++ show (n::Int) ++ "argument, but have " ++ show (length es), show (pp prim) ]
   def mb re = [Rust.localLet [] (compileBVName x) mb re]
-  
+
 compileOp1 :: FnCtx => VM.BV -> Core.Op1 -> Rust.Expr () -> VM.VMT -> [Rust.Stmt ()]
 compileOp1 x op e argTy =
   case op of
@@ -607,7 +673,7 @@ compileOp1 x op e argTy =
     Core.Neg    -> def (Rust.uni Rust.Neg e)
     Core.BitNot -> def (Rust.uni Rust.Not e)
     Core.Not    -> def (Rust.uni Rust.Not e)
-    
+
     Core.NewIterator ->
       case argTy of
         VM.TSem (Core.TArray {}) -> def (callRTS "new_array_iterator" [e])
@@ -670,7 +736,7 @@ compileOp1 x op e argTy =
         Rust.pathExpr
           (appendPath (compileTPath hasPref nm) (compileConLabel lab))
       withArg = Rust.call noArg [e]
-      
+
     Core.FromUnion ty lab
       | Core.tnameBD unm ->
         def (Rust.call (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath "from_bits_unchecked")) [Rust.callMethod e "to_bits" []])
@@ -701,10 +767,10 @@ compileOp1 x op e argTy =
                   (Rust.callMethod (Rust.identExpr "a") "clo" [])
               Just Core.NoData -> noArg
           Core.TFlavStruct {} -> bad "struct"
-        
+
       bad msg = panic "compileOp1" ["FromUnion",msg]
-                  
-       
+
+
     Core.WordToFloat -> def (Rust.call (Rust.pathExpr (Rust.simplePath' ["f32", "from_bits"]))
                               [Rust.call (Rust.pathExpr (Rust.simplePath' ["u32", "from"])) [e]])
     Core.WordToDouble -> def (Rust.call (Rust.pathExpr (Rust.simplePath' ["f64", "from_bits"]))
@@ -715,7 +781,7 @@ compileOp1 x op e argTy =
     Core.IsNegativeZero -> def (Rust.bin Rust.AndOp
                                   (Rust.callMethod e "is_sign_negative" [])
                                   (Rust.bin Rust.EqOp e (Rust.litExpr (Rust.floatLit 0))))
-    
+
   where
   def re = [Rust.localLet [] (compileBVName x) Nothing re]
 
@@ -728,13 +794,13 @@ compileOp2 x op e1 e2 t1 t2 =
     Core.IsPrefix     -> def (Rust.callMethod e2 "is_prefix" [e1])
     Core.DropMaybe    -> def (Rust.callMethod e2 "advance_maybe" [ toSize e1 ])
     Core.Take         -> def (Rust.callMethod e2 "restrict" [ toSize e1 ])
- 
+
     -- Comparisons
     Core.Eq     -> bin Rust.EqOp
     Core.NotEq  -> bin Rust.NeOp
     Core.Leq    -> bin Rust.LeOp
     Core.Lt     -> bin Rust.LtOp
- 
+
     -- Arithmetic (only Integer; bounded types must use CallPrim2)
     Core.Add
       | VM.TSem Core.TInteger <- t1 -> bin Rust.AddOp
@@ -747,10 +813,10 @@ compileOp2 x op e1 e2 t1 t2 =
       | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
     Core.Div    -> bin Rust.DivOp
     Core.Mod    -> bin Rust.RemOp
- 
+
     -- Bits
     Core.BitAnd -> bin Rust.BitAndOp
-    Core.BitOr  -> bin Rust.BitOrOp 
+    Core.BitOr  -> bin Rust.BitOrOp
     Core.BitXor -> bin Rust.BitXorOp
     Core.Cat
       | Just m <- okT t1
@@ -771,7 +837,7 @@ compileOp2 x op e1 e2 t1 t2 =
         _ -> def (callRTS "lcat" [ e1, e2 ])
     Core.LShift -> bin' Rust.ShlOp e1 (toSize e2)
     Core.RShift -> bin' Rust.ShrOp e1 (toSize e2)
- 
+
     -- Arrays
     Core.ArrayIndex -> def (Rust.callMethod val "clo" [])
       where val = Rust.index e1 (toSize e2)
@@ -780,17 +846,17 @@ compileOp2 x op e1 e2 t1 t2 =
     Core.Emit -> def (Rust.callMethod e1 "push" [ e2 ])
     Core.EmitArray -> def (Rust.callMethod e1 "push_array" [ e2 ])
     Core.EmitBuilder -> unsupported ("emit builder is not yet supported")
-    
+
     -- Maps
     Core.MapLookup -> def (Rust.callMethod e1 "lookup" [e2])
     Core.MapLookupLE -> def (Rust.callMethod e1 "lookup_le" [e2])
     Core.MapMember -> def (Rust.callMethod e1 "contains" [e2])
- 
+
   where
   def e         = [Rust.localLet [] (compileBVName x) Nothing e]
   bin rop       = bin' rop e1 e2
   bin' rop l r  = def (Rust.bin rop l r)
-  
+
 
 
 compileOp3 :: FnCtx => VM.BV -> Core.Op3 -> Rust.Expr () -> Rust.Expr () -> Rust.Expr () ->
@@ -822,7 +888,7 @@ compileOp3 x op e1 e2 e3 t1 _t2 _t3 =
   where
   bad   = panic "compileOp3" ["Unexpected",show (pp op)]
   def e = [Rust.localLet [] (compileBVName x) Nothing e]
-  
+
 compileOpN :: FnCtx => VM.BV -> Core.OpN -> [Rust.Expr ()] -> [Rust.Stmt ()]
 compileOpN x op es =
   case op of
@@ -854,7 +920,7 @@ compileExpr how expr =
           Core.TFloat -> Rust.F32
           Core.TDouble -> Rust.F64
           _ -> panic "compileExpr" ["Unepxeted EFloat type"]
-        
+
     VM.EMapEmpty k v -> mbBorrow VM.Owned (Rust.call (Rust.pathExpr (Rust.pathWithTypes [ddlModName, "empty_map"] [rk,rv])) [])
       where rk = compileType VM.Owned k
             rv = compileType VM.Owned v
@@ -877,7 +943,7 @@ compileNumLit n ty =
     _ -> panic "compileNumLit" [show (?fnMsg <+> "numeric literal at type" <+> pp ty)]
   where
   -- Use .into() on the literal, relying on type inference from context
-  intoWord sign = 
+  intoWord sign =
     Rust.call (Rust.typeQualifiedExpr (compileType VM.Owned ty) (Rust.simplePath "from"))
       [Rust.litExpr (Rust.intLit' suf n)]
     where
@@ -901,7 +967,7 @@ compileCInstr mbRec cinstr =
         | VM.TSem (Core.TSInt _) <- ty = \r -> Rust.callMethod r "into" []
         | VM.TSem (Core.TUser ut) <- ty, Core.tnameBD (Core.utName ut) = \r -> Rust.callMethod r "to_enum" []
         | otherwise                    = id
-      
+
     VM.Yield             -> bad
     VM.ReturnNo
       -- Within a recursive group, pop and dispatch the top continuation
@@ -1151,7 +1217,7 @@ compileIntCase e (VM.JumpCase ps0) = classify [] [] [] [] [] (Map.toList ps0)
         smallAlt (p,k) =
           Rust.matchArm (Rust.somePat (Rust.litPat (Rust.intLit' smallSuff p)))
                         (Rust.blockExpr (compileJumpWithFree k []))
-        
+
         bigAlt opts =
           Rust.matchArm Rust.wildPat $
           case opts of
@@ -1171,7 +1237,7 @@ compileIntCase e (VM.JumpCase ps0) = classify [] [] [] [] [] (Map.toList ps0)
             [k] -> Rust.blockExpr (compileJumpWithFree k [])
             _   -> panic "compileIntCase" ["Multiple default cases"]
 
-        
+
         decisionTree len opts =
           case splitAt n opts of
             (as,(b,k):bs) ->
@@ -1189,7 +1255,7 @@ compileIntCase e (VM.JumpCase ps0) = classify [] [] [] [] [] (Map.toList ps0)
               Rust.addrOf $
               Rust.call (Rust.typeQualifiedExpr ty (Rust.simplePath "from_signed_bytes_be"))
               [Rust.addrOf (Rust.arrExpr [Rust.litExpr (Rust.intLit' Rust.U8 (toInteger b)) | b <- integerToBytes x])]
-              
+
         (smallSuff, meth, smallCases, bigCases) =
           case useI of
             [] -> (Rust.U64, "try_to_unsigned", sortOn fst (useUI ++ useU), sortOn fst useBig)

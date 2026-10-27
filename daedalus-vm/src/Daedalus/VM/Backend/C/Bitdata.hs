@@ -2,7 +2,7 @@ module Daedalus.VM.Backend.C.Bitdata (cBitdata,bdCase,bdCaseDflt) where
 
 import Data.Maybe(mapMaybe)
 import Data.Map(Map)
-import Data.List(groupBy)
+import qualified Data.List.NonEmpty as NE
 
 import Daedalus.PP
 import qualified Daedalus.BDD as BDD
@@ -120,7 +120,7 @@ bdCaseDflt ::
 bdCaseDflt addBrk allTys univ e cases dflt =
     foldr doCase dflt
   $ map rearrange
-  $ groupBy sameMask
+  $ NE.groupBy sameMask
   $ BDD.patTestsAssumingInOrder univ
     [ (bdUniverse allTys t, s) | (t,s) <- cases ]
 
@@ -136,15 +136,15 @@ bdCaseDflt addBrk allTys univ e cases dflt =
     | otherwise = val <+> "&" <+> integer m
 
   doCase (mask, alts) orElse
-    | mask == 0 = snd (head alts)
+    | mask == 0 = snd (NE.head alts)
     | otherwise =
       cSwitchDefault
         (maskedWith mask)
-        [ cCase (integer v) (addBreak rhs) | (v,rhs) <- alts ]
+        [ cCase (integer v) (addBreak rhs) | (v,rhs) <- NE.toList alts ]
         orElse
 
-  rearrange xs = ( BDD.patMask (fst (head xs))
-                 , [ (BDD.patValue t, rhs) | (t,rhs) <- xs ]
+  rearrange xs = ( BDD.patMask (fst (NE.head xs))
+                 , NE.map (\(t,rhs) -> (BDD.patValue t, rhs)) xs
                  )
 
   sameMask (x,_) (y,_) = BDD.patMask x == BDD.patMask y

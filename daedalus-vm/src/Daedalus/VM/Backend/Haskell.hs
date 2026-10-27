@@ -7,7 +7,7 @@ module Daedalus.VM.Backend.Haskell
 import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import Data.Maybe(catMaybes)
+import Data.Maybe(mapMaybe)
 
 import qualified Data.Functor.Identity as RTS
 import qualified Daedalus.RTS as RTS
@@ -231,7 +231,7 @@ compileE expr =
 
 compilePrim :: (HasTypes,ExprEnv) => PrimName -> [E] -> TH.ExpQ
 compilePrim prim es =
-  let args = map compileE es
+  let args = map (\e -> (e, compileE e)) es
   in
   case prim of
 
@@ -239,11 +239,11 @@ compilePrim prim es =
       | not (Core.tnameBD nm) ->
           [| $(TH.appsE (TH.conE (structConName nm) : sargs)) |]
 
-      | otherwise -> mkBDCon nm args
+      | otherwise -> mkBDCon nm (map snd args)
       where
       nm = Core.utName ut
-      sargs    = catMaybes (zipWith keep es args)
-      keep e a = if getSemType e == Core.TUnit then Nothing else Just a
+      sargs = mapMaybe keep args
+      keep (e, a) = if getSemType e == Core.TUnit then Nothing else Just a
 
     NewBuilder t   -> compileOp0 (Core.NewBuilder t)
     Integer i      -> compileOp0 (Core.IntL i Core.TInteger)
@@ -251,29 +251,29 @@ compilePrim prim es =
 
     Op1 op1 ->
       case args of
-        [e] -> compileOp1 op1 (getSemType (head es)) e
+        [(e, a)] -> compileOp1 op1 (getSemType e) a
         _   -> panic "compilePrim" ["Op1 arity mismatch", show (pp op1)]
 
 
     Op2 op2 ->
       case args of
-        [e1,e2] ->
+        [(e1,a1),(_,a2)] ->
           case op2 of
-            Core.Add | Core.TInteger /= getSemType (es !! 0) ->
+            Core.Add | Core.TInteger /= getSemType e1 ->
               panic "compilePrim" ["use CallPrim2 for checked arithmetic"]
-            Core.Sub | Core.TInteger /= getSemType (es !! 0) ->
+            Core.Sub | Core.TInteger /= getSemType e1 ->
               panic "compilePrim" ["use CallPrim2 for checked arithmetic"]
-            Core.Mul | Core.TInteger /= getSemType (es !! 0) ->
+            Core.Mul | Core.TInteger /= getSemType e1 ->
               panic "compilePrim" ["use CallPrim2 for checked arithmetic"]
-            _ -> compileOp2 op2 e1 e2
+            _ -> compileOp2 op2 a1 a2
         _       -> panic "compilePrim" ["Op2 arity mismatch"]
 
     Op3 op3 ->
       case args of
-        [e1,e2,e3] -> compileOp3 op3 e1 e2 e3
+        [(_,a1),(_,a2),(_,a3)] -> compileOp3 op3 a1 a2 a3
         _          -> panic "compilePrim" ["Op3 arity mismatch"]
 
-    OpN opN -> compileOpN doFun opN args
+    OpN opN -> compileOpN doFun opN (map snd args)
       where doFun = panic "compileOpN" ["Unexpcetd function call"]
 
 mkBDCon :: HasTypes => Core.TName -> [TH.ExpQ] -> TH.ExpQ

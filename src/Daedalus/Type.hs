@@ -114,7 +114,9 @@ inferTRuleRec ins =
 
   mk :: [a] -> Rec a
   mk a = case ins of
-           NonRec _ -> NonRec (head a)
+           NonRec _
+            | (x:_) <- a -> NonRec x
+            | otherwise -> panic "inferTRuleRec" ["empty list"]
            MutRec _ -> MutRec a
 
 checkTypeDecls :: Rec TypeDecl -> STypeM (Map TCTyName TCTyDecl)
@@ -1247,7 +1249,10 @@ checkPatternCase ::
   Type -> Type -> [Pattern] -> Expr -> TypeM ctx (TCAlt SourceRange ctx)
 checkPatternCase tIn tOut ps e =
   do qs <- mapM (checkPattern tIn) ps
-     let vars = sort (patBinds (head qs))
+     let q = case qs of
+          [] -> panic "checkPatternCase" ["empty patterns"]
+          (pat:_) -> pat
+     let vars = sort (patBinds q)
      forM_ (zip ps qs) \(p,q1) ->
         do unify tIn (p,typeOf q1)
            let check v1 v2 = unify (v1,typeOf v1) (v2,typeOf v2)
