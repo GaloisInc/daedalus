@@ -93,14 +93,14 @@ data BDFieldType = BDWild | BDTag Integer | BDData Label Type
 
 
 
--- | Get an instantiate version of a type.
+-- | Get an instantiated version of a type.
 -- Assumes that the decl name and user type match.
 tyDeclsInst :: TDecl -> UserType -> TDef
 tyDeclsInst td orig =
   case tDef td of
     TStruct ls   -> TStruct (goLabeled ls)
     TUnion  ls   -> TUnion  (goLabeled ls)
-    TBitdata b d -> TBitdata b d -- nothing to instnatiate here
+    TBitdata b d -> TBitdata b d -- nothing to instantiate here
 
   where
   nenv = Map.fromList (zip (tTParamKNumber td) (utNumArgs orig))

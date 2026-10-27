@@ -1,0 +1,3 @@
+./T086.ddl:2:12--2:56:
+  Type cannot be used as a map key
+    • Type: float

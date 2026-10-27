@@ -133,6 +133,7 @@ ppCtr ctr =
   case ctr of
     Integral t -> ppBackTy t <+> "is an integral type"
     Arith t    -> ppBackTy t <+> "supports arithmetic"
+    MapKey t   -> ppBackTy t <+> "may be used as a map key"
     FloatingType t -> ppBackTy t <+> "is a floating point type"
     HasStruct ts l tf ->
       ppBackTy ts <+> "has a field" <+> pp l <+> ":" <+> ppTy 0 tf

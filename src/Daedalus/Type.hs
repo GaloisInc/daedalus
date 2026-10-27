@@ -556,6 +556,7 @@ inferExpr expr =
         MapDoInsert ->
           liftValAppPure expr [e1,e2,e3] \ ~[(k1,kt),(v1,vt),(m1,mt)] ->
           do unify (tMap kt vt) (e3, mt)
+             addConstraint expr (MapKey kt)
              pure (exprAt expr (TCTriOp op k1 v1 m1 mt), mt)
 
       where
@@ -589,6 +590,7 @@ inferExpr expr =
           liftValAppPure expr [e1,e2] \ ~[(e1',kt),(e2',mt)] ->
           do vt <- newTVar e2' KValue
              unify (tMap kt vt) (e2',mt)
+             addConstraint expr (MapKey kt)
              let ty = tMaybe vt
              pure (exprAt expr (TCBinOp op e1' e2' ty), ty)
 
@@ -596,6 +598,7 @@ inferExpr expr =
           liftValAppPure expr [e1,e2] \ ~[(e1',kt),(e2',mt)] ->
           do vt <- newTVar e2' KValue
              unify (tMap kt vt) (e2',mt)
+             addConstraint expr (MapKey kt)
              let ty = tMaybe (tTuple [kt,vt])
              pure (exprAt expr (TCBinOp op e1' e2' ty), ty)
 
@@ -821,6 +824,7 @@ inferExpr expr =
       grammarOnly expr $
       liftApp [k,v,m] \ ~[(k1,kt),(v1,vt),(m1,mt)] ->
       do unify (tMap kt vt) (m, mt)
+         addConstraint expr (MapKey kt)
          pure (exprAt expr (TCMapInsert YesSem k1 v1 m1), tGrammar mt)
 
     EMapLookup k m ->
@@ -828,6 +832,7 @@ inferExpr expr =
       liftApp [k,m] \ ~[(k1,kt),(m1,mt)] ->
       do vt <- newTVar m KValue
          unify (tMap kt vt) (m, mt)
+         addConstraint expr (MapKey kt)
          pure (exprAt expr (TCMapLookup YesSem k1 m1), tGrammar vt)
 
     EArray es ->
