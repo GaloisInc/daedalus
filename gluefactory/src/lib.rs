@@ -552,6 +552,7 @@ pub fn make_parser_main(input: TokenStream) -> TokenStream {
     };
     let result_type_name = as_type_string(&getter_return_type)
 	.expect("make_parser_main result type must have a C-compatible name");
+    append_to_c_header(&"typedef enum { FFI_ERROR_OK = 0, FFI_ERROR_PARSE = 1, FFI_ERROR_INVALID_POINTER = 2, FFI_ERROR_INVALID_INDEX = 3, FFI_ERROR_INVALID_LENGTH = 4 } Var_FfiError;".to_string(),"parser_types.h");
     append_to_c_header(&format!("typedef struct {} {};", parsed_struct_name, parsed_struct_name),"parser_types.h");
     if !is_c_prim(&result_type_name) {
 	append_to_c_header(&format!("typedef struct {} {};", result_type_name, result_type_name),"parser_types.h");
