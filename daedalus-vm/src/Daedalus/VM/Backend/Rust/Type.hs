@@ -43,8 +43,11 @@ collectBuiltinSpecializationsHelper t =
       let (arrayElementTypes, mapTypes) = collectBuiltinSpecializationsHelper elementType in
         (t : arrayElementTypes, mapTypes)
     Core.TMap keyType valType ->
-      let (arrayElementTypes, mapTypes) = collectBuiltinSpecializationsHelper valType in
-        (arrayElementTypes, t : mapTypes)
+      let (keyArrayElementTypes, keyMapTypes) = collectBuiltinSpecializationsHelper keyType
+          (valArrayElementTypes, valMapTypes) = collectBuiltinSpecializationsHelper valType
+      in ( keyArrayElementTypes ++ valArrayElementTypes
+         , t : keyMapTypes ++ valMapTypes
+         )
     _ -> ([], [])
 
 collectBuiltinSpecializations :: Core.TDecl -> ([Core.Type], [Core.Type])
@@ -67,7 +70,8 @@ getAllBuiltinSpecializations decls =
 
 compileBuiltinSpecializations :: Core.MName -> [Core.TDecl] -> [Rust.Item ()]
 compileBuiltinSpecializations name decls =
-  let (arrs, maps) = getAllBuiltinSpecializations decls in
+  let (arrs, _maps) = getAllBuiltinSpecializations decls in
+    -- XXX: Generate accessors for maps as well.  See issue #486.
     concatMap (compileBuiltinAccessors name) arrs
 
 compileBuiltinAccessors :: Core.MName -> Core.Type -> [Rust.Item ()]
