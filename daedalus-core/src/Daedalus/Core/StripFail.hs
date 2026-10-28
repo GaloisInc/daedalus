@@ -45,11 +45,12 @@ stripFailG gram =
     GCase (Case e cs) ->
       case cs of
         [] -> panic "stripFailG" ["empty case alternatives"]
-        (a:_) -> case filter (not . isFail . snd) cs of
-          []  -> snd a -- propagate failure (should be a Fail)
-          cs' | not (any isNonFailPAny cs) ->
-                  GCase (Case e (keepFailingDefault cs cs'))
-          _ -> GCase (Case e cs)
+        _ | any isNonFailPAny cs -> GCase (Case e cs)
+        _ ->
+          case (filter (isFail . snd) cs, filter (not . isFail . snd) cs) of
+            ([], _)            -> GCase (Case e cs)
+            ((_, f) : _, [])   -> f
+            ((_, f) : _, cs')  -> GCase (Case e (cs' ++ [(PAny, f)]))
         
     nonFail -> nonFail
 
@@ -59,11 +60,4 @@ stripFailG gram =
 
     isNonFailPAny (PAny, g) | not (isFail g) = True
     isNonFailPAny _ = False
-
-    -- A default alternative makes a Core case exhaustive.  Even when its
-    -- body is Fail, dropping it produces malformed Core.
-    keepFailingDefault original stripped =
-      case reverse original of
-        (a@(PAny, _) : _) -> stripped ++ [a]
-        _                 -> stripped
 
