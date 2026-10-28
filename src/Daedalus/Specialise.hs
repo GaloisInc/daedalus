@@ -95,9 +95,9 @@ isTemplateDecl d =
       GrammarParam _ -> True
 
 -- | This assumes that the declratations are in dependency order.
-specialise :: [Name] -> [Rec (TCDecl SourceRange)]
+specialise :: Int -> [Name] -> [Rec (TCDecl SourceRange)]
               -> PassM (Either String [TCDecl SourceRange])
-specialise ruleRoots decls =
+specialise maxRecursiveInstantiations ruleRoots decls =
   runPApplyM ruleRoots (concat . reverse <$> mapM go (reverse decls))
   where
     -- First we find if we need to generate partial applications.  If we
@@ -173,9 +173,6 @@ specialise ruleRoots decls =
         [ pp n <+> parens (text (show (length is)) <+> "instances")
         | (n, is) <- Map.toList todo
         ]
-
-    maxRecursiveInstantiations = 20
-
 
 -- This function traverses a term and replaces all problematic
 -- function calls by specialised versions

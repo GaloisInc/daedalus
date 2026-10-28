@@ -79,6 +79,7 @@ module Daedalus.Driver
   , optWarnings
   , optDebugMode
   , optValidateCore
+  , optSpecializeLimit
 
     -- * Output
   , ddlPutStr
@@ -314,6 +315,9 @@ data State = State
 
   , checkCorePasses :: Bool
     -- ^ Run a validation after each core to core pass
+
+  , specializeLimit :: Int
+    -- ^ Maximum number of instances generated for a recursive group
   }
 
 
@@ -332,6 +336,7 @@ defaultState = State
   , coreTypeNames       = Map.empty
   , debugMode           = False
   , checkCorePasses     = True
+  , specializeLimit     = 20
   }
 
 
@@ -514,6 +519,9 @@ optDebugMode = DDLOpt debugMode \a s -> s { debugMode = a }
 
 optValidateCore :: DDLOpt Bool
 optValidateCore = DDLOpt checkCorePasses \a s -> s { checkCorePasses = a }
+
+optSpecializeLimit :: DDLOpt Int
+optSpecializeLimit = DDLOpt specializeLimit \a s -> s { specializeLimit = a }
 --------------------------------------------------------------------------------
 -- Names
 
@@ -800,7 +808,8 @@ passSpecialize tgt roots =
                       ("Module " ++ show (pp tgt) ++ " is already loaded."))
        Nothing -> pure ()
      mapM_ (checkMono rootNames) (forgetRecs decls)
-     r <- ddlRunPass (specialise rootNames decls)
+     limit <- ddlGetOpt optSpecializeLimit
+     r <- ddlRunPass (specialise limit rootNames decls)
      case r of
        Left err  -> ddlThrow (ASpecializeError err)
        Right sds ->

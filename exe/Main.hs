@@ -103,6 +103,7 @@ configure opts =
                                      _                     -> True
      ddlSetOpt optSearchPath (optModulePath opts)
      ddlSetOpt optValidateCore (optCheckCore opts)
+     ddlSetOpt optSpecializeLimit (optMaxSpecializations opts)
 
 handleOptions :: Options -> Daedalus ()
 handleOptions opts

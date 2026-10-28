@@ -81,6 +81,7 @@ data Options =
           , optExternMods :: Map Text String
             -- ^ maps an external module to its backend-specific qualifier
           , optUseLazyStream :: Bool
+          , optMaxSpecializations :: Int
 
           , optModulePath :: [String]
             -- ^ Search for modules in these paths
@@ -146,6 +147,7 @@ defaultOptions =
           , optCBindings = False
           , optGluefactoryPath = Nothing
           , optUseLazyStream = False
+          , optMaxSpecializations = 20
           , optVM_do_mm = True
           , optSaveGluefactory = False
           , optSaveRTS = False
@@ -553,7 +555,14 @@ cmdCompileCPPOptions = (\o -> o { optCommand = CompileCPP }, opts)
 
 coreOptions :: [OptDescr Options]
 coreOptions =
-  [ Option [] ["entry"]
+  [ Option [] ["specialize-limit"]
+    "Maximum number of instances to generate for a recursive specialization group."
+    $ ReqArg "N" \s o ->
+      case reads s of
+        [(n,"")] | n >= 0 -> Right o { optMaxSpecializations = n }
+        _ -> Left "The specialization limit must be a non-negative integer."
+
+  , Option [] ["entry"]
     "Generate a library containg this parser."
     $ ReqArg "[MODULE.]NAME"
       \s o -> Right o { optEntries = s : optEntries o }
