@@ -42,13 +42,13 @@ stripFailG gram =
 
     Annot _ f@(Fail {}) -> f
 
-    -- FIXME: this breaks when there are default cases
     GCase (Case e cs) ->
       case cs of
         [] -> panic "stripFailG" ["empty case alternatives"]
         (a:_) -> case filter (not . isFail . snd) cs of
           []  -> snd a -- propagate failure (should be a Fail)
-          cs' | not (any isNonFailPAny cs) -> GCase (Case e cs')
+          cs' | not (any isNonFailPAny cs) ->
+                  GCase (Case e (keepFailingDefault cs cs'))
           _ -> GCase (Case e cs)
         
     nonFail -> nonFail
@@ -59,4 +59,11 @@ stripFailG gram =
 
     isNonFailPAny (PAny, g) | not (isFail g) = True
     isNonFailPAny _ = False
+
+    -- A default alternative makes a Core case exhaustive.  Even when its
+    -- body is Fail, dropping it produces malformed Core.
+    keepFailingDefault original stripped =
+      case reverse original of
+        (a@(PAny, _) : _) -> stripped ++ [a]
+        _                 -> stripped
 
