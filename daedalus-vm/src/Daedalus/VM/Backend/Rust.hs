@@ -807,15 +807,15 @@ compileOp2 x op e1 e2 t1 t2 =
     Core.Leq    -> bin Rust.LeOp
     Core.Lt     -> bin Rust.LtOp
 
-    -- Arithmetic (only Integer; bounded types must use CallPrim2)
+    -- Arithmetic (bounded integer types must use CallPrim2)
     Core.Add
-      | VM.TSem Core.TInteger <- t1 -> bin Rust.AddOp
+      | directArithType t1 -> bin Rust.AddOp
       | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
     Core.Sub
-      | VM.TSem Core.TInteger <- t1 -> bin Rust.SubOp
+      | directArithType t1 -> bin Rust.SubOp
       | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
     Core.Mul
-      | VM.TSem Core.TInteger <- t1 -> bin Rust.MulOp
+      | directArithType t1 -> bin Rust.MulOp
       | otherwise -> panic "compileOp2" ["use CallPrim2 for checked arithmetic", show (pp op)]
     Core.Div    -> bin Rust.DivOp
     Core.Mod    -> bin Rust.RemOp
@@ -859,6 +859,13 @@ compileOp2 x op e1 e2 t1 t2 =
     Core.MapMember -> def (Rust.callMethod e1 "contains" [e2])
 
   where
+  directArithType t =
+    case t of
+      VM.TSem Core.TInteger -> True
+      VM.TSem Core.TFloat   -> True
+      VM.TSem Core.TDouble  -> True
+      _                     -> False
+
   def e         = [Rust.localLet [] (compileBVName x) Nothing e]
   bin rop       = bin' rop e1 e2
   bin' rop l r  = def (Rust.bin rop l r)
