@@ -203,12 +203,14 @@ noManyLoop s cmt l m_u p =
       withNamedExpr l \le ->
       withNamedExpr u \ue ->
         doIf (ue `lt` le)
-             (sysErr (TArray ty) "Empty bounds")
+             (sysErr resultType "Empty bounds")
              =<<
              do p' <- nameGrammar "ManyBody" p
                 case s of
-                  SemNo -> Do_ <$> pSkipExactlyMany cmt le p'
-                               <*> pSkipAtMost cmt (ue `sub` le) p'
+                  SemNo -> do
+                    p1 <- pSkipExactlyMany cmt le p'
+                    p2 <- pSkipAtMost cmt (ue `sub` le) p'
+                    pure (Do_ p1 (Do_ p2 (Pure unit)))
                   SemYes -> do
                     b <- newLocal (TBuilder ty)
                     p1 <- pParseExactlyMany cmt ty le p'
@@ -216,6 +218,10 @@ noManyLoop s cmt l m_u p =
                     finishMany ty (Do b p1 p2)
   where
     ty = typeOf p
+    resultType =
+      case s of
+        SemNo  -> TUnit
+        SemYes -> TArray ty
 
 maybeSkip :: Backtrack -> Grammar -> Grammar -> Grammar -> M Grammar
 maybeSkip cmt p yes no =
