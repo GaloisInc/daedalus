@@ -103,6 +103,7 @@ loadDDLVM cfg src =
      let rootPs = [(mo, Text.pack root) | root <- roots ]
      DDL.passSpecialize specMod rootPs
      DDL.passCore specMod
+     DDL.passDeadValCore specMod
      -- rootFs <- mapM (uncurry DDL.ddlGetFName) rootPs
      -- DDL.passInline Core.AllBut rootFs specMod
      DDL.passDeterminize specMod
