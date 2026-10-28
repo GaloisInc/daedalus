@@ -307,7 +307,7 @@ checkPatterns t ps
                         [ "Type:" <+> pp t ]
 
   notExhaustive = typeError "Missing branches in `case`" []
-  countNotExhaustive n = when (n < num) notExhaustive
+  countNotExhaustive n = when (num < n) notExhaustive
 
   resolve =
     case t of
