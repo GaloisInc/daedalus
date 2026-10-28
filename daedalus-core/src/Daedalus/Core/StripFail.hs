@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 
 import Daedalus.Core
 import Daedalus.Core.Free
+import Daedalus.Core.Type (typeOf)
 import Daedalus.Panic (panic)
 
 stripFailM :: Module -> Module
@@ -23,10 +24,10 @@ stripFailGFun fu =
 stripFailG :: Grammar -> Grammar
 stripFailG gram =
   case mapChildrenG stripFailG gram of
-    Do_ f@(Fail {}) _ -> f
+    Do_ f@(Fail {}) g -> setFailType (typeOf g) f
     Do_ _ f@(Fail {}) -> f
     
-    Do _ f@(Fail {}) _ -> f
+    Do _ f@(Fail {}) g -> setFailType (typeOf g) f
     Do _ _ f@(Fail {}) -> f
 
     Let x _ f@(Fail {})
@@ -42,20 +43,24 @@ stripFailG gram =
 
     Annot _ f@(Fail {}) -> f
 
-    -- FIXME: this breaks when there are default cases
     GCase (Case e cs) ->
       case cs of
         [] -> panic "stripFailG" ["empty case alternatives"]
-        (a:_) -> case filter (not . isFail . snd) cs of
-          []  -> snd a -- propagate failure (should be a Fail)
-          cs' | not (any isNonFailPAny cs) -> GCase (Case e cs')
-          _ -> GCase (Case e cs)
+        _ | any isNonFailPAny cs -> GCase (Case e cs)
+        _ ->
+          case (filter (isFail . snd) cs, filter (not . isFail . snd) cs) of
+            ([], _)            -> GCase (Case e cs)
+            ((_, f) : _, [])   -> f
+            ((_, f) : _, cs')  -> GCase (Case e (cs' ++ [(PAny, f)]))
         
     nonFail -> nonFail
 
   where
     isFail (Fail {}) = True
     isFail _         = False
+
+    setFailType ty (Fail src _ msg) = Fail src ty msg
+    setFailType _  g                = g
 
     isNonFailPAny (PAny, g) | not (isFail g) = True
     isNonFailPAny _ = False
