@@ -22,7 +22,6 @@ proc Main() : () =
   -- ./Det006.ddl:3:14--3:21
   do -- ./Det006.ddl:3:14--3:14
      T__27()
-     -- ./Det006.ddl:3:17--3:21
      -- ./Det006.ddl:3:17--3:19
      matchEnd
  
@@ -53,14 +52,12 @@ proc T__27() : () =
                 -- local_control_off
                 -- ./Det006.ddl:8:5--8:45
                 -- ./Det006.ddl:8:25--8:45
-                -- ./Det006.ddl:8:5--8:45
                 pure ()
               127 ->
                 -- ./Det006.ddl:9:5--9:45
                 -- local_control_on
                 -- ./Det006.ddl:9:5--9:45
                 -- ./Det006.ddl:9:25--9:45
-                -- ./Det006.ddl:9:5--9:45
                 pure ()
               _ ->
                 fail_sys @()
@@ -86,7 +83,6 @@ proc T__27() : () =
          -- ./Det006.ddl:13:5--13:55
          -- mono_on
          -- ./Det006.ddl:13:5--13:55
-         -- ./Det006.ddl:13:36--13:55
          -- ./Det006.ddl:13:41--13:53
          match1_ { 0 @(Word 8) .. 16 @(Word 8) }
        127 ->

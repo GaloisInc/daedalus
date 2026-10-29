@@ -102,7 +102,6 @@ proc NumericTag(e : Endian, x : Word 16) : () =
   -- ./Det009.ddl:25:3--28:3
   do -- ./Det009.ddl:25:3--25:9
      Tag(e, x)
-     -- ./Det009.ddl:26:3--28:3
      -- ./Det009.ddl:26:3--26:11
      Unsgned(e)
  
@@ -160,7 +159,6 @@ proc IFDEntry(e : Endian) : IFDEntry =
               fail_sys @() "Pattern match failure"
           _34 <- -- DETCALL 
                  -- ./Det009.ddl:12:17--12:34
-                 -- ./Det009.ddl:26:3--28:3
                  -- ./Det009.ddl:26:3--26:11
                  Unsgned(e)
           -- ./Det009.ddl:12:3--12:34
@@ -199,7 +197,6 @@ proc IFDEntry(e : Endian) : IFDEntry =
                 fail_sys @() "Pattern match failure"
             _35 <- -- DETCALL 
                    -- ./Det009.ddl:13:17--13:34
-                   -- ./Det009.ddl:26:3--28:3
                    -- ./Det009.ddl:26:3--26:11
                    Unsgned(e)
             -- ./Det009.ddl:13:3--13:34
@@ -238,7 +235,6 @@ proc IFDEntry(e : Endian) : IFDEntry =
                   fail_sys @() "Pattern match failure"
               _36 <- -- DETCALL 
                      -- ./Det009.ddl:15:17--15:34
-                     -- ./Det009.ddl:26:3--28:3
                      -- ./Det009.ddl:26:3--26:11
                      Unsgned(e)
               -- ./Det009.ddl:15:3--15:34
@@ -277,7 +273,6 @@ proc IFDEntry(e : Endian) : IFDEntry =
                     fail_sys @() "Pattern match failure"
                 _37 <- -- DETCALL 
                        -- ./Det009.ddl:16:31--16:48
-                       -- ./Det009.ddl:26:3--28:3
                        -- ./Det009.ddl:26:3--26:11
                        Unsgned(e)
                 -- ./Det009.ddl:16:3--16:48
@@ -316,7 +311,6 @@ proc IFDEntry(e : Endian) : IFDEntry =
                       fail_sys @() "Pattern match failure"
                   _38 <- -- DETCALL 
                          -- ./Det009.ddl:18:21--18:38
-                         -- ./Det009.ddl:26:3--28:3
                          -- ./Det009.ddl:26:3--26:11
                          Unsgned(e)
                   -- ./Det009.ddl:18:3--18:38
@@ -355,7 +349,6 @@ proc IFDEntry(e : Endian) : IFDEntry =
                         fail_sys @() "Pattern match failure"
                     _39 <- -- DETCALL 
                            -- ./Det009.ddl:19:21--19:38
-                           -- ./Det009.ddl:26:3--28:3
                            -- ./Det009.ddl:26:3--26:11
                            Unsgned(e)
                     -- ./Det009.ddl:19:3--19:38
@@ -398,7 +391,6 @@ proc Main() : IFDEntry =
   -- ./Det009.ddl:4:4--7:3
   do e <- -- ./Det009.ddl:4:8--4:13
           Endian()
-     -- ./Det009.ddl:5:3--7:3
      -- ./Det009.ddl:5:3--5:12
      IFDEntry(e)
  
