@@ -8,87 +8,48 @@ module Det008
  
 --- Rules:
  
-Det008.T1_ : Grammar {} =
-  Choose biased
-    { do @Match {'a'}
-         Choose biased
-           { @Match {'a'}
-           | @Match {'b'}
-           }
-    | do @Match {'a'}
-         @Match {'c'}
-    }
- 
-Det008.T2_ : Grammar {} =
-  Choose biased
-    { do @Match {'a'}
-         Choose biased
-           { @Match {'a'}
-           | @Match {'b'}
-           }
-    | do @Match {'a'}
-         @Match {'b'}
-    }
- 
-Det008.T3_ : Grammar {} =
-  Choose fair
-    { do @Match {'a'}
-         Choose biased
-           { @Match {'a'}
-           | @Match {'b'}
-           }
-    | do @Match {'a'}
-         @Match {'a'}
-    }
- 
-Det008.Main : Grammar {} =
-  do Det008.T1_
-     Det008.T2_
-     Det008.T3_
-     ($$ : {}) <- END
-     pure $$
- 
 Det008.T1 : Grammar (uint 8) =
   Choose biased
-    { do @Match {'a'}
+    { do Match {'a'}
          ($$ : uint 8) <- Choose biased
                             { Match {'a'}
                             | Match {'b'}
                             }
          pure $$
-    | do @Match {'a'}
+    | do Match {'a'}
          ($$ : uint 8) <- Match {'c'}
          pure $$
     }
  
 Det008.T2 : Grammar (uint 8) =
   Choose biased
-    { do @Match {'a'}
+    { do Match {'a'}
          ($$ : uint 8) <- Choose biased
                             { Match {'a'}
                             | Match {'b'}
                             }
          pure $$
-    | do @Match {'a'}
+    | do Match {'a'}
          ($$ : uint 8) <- Match {'b'}
          pure $$
     }
  
 Det008.T3 : Grammar (uint 8) =
   Choose fair
-    { do @Match {'a'}
+    { do Match {'a'}
          ($$ : uint 8) <- Choose biased
                             { Match {'a'}
                             | Match {'b'}
                             }
          pure $$
-    | do @Match {'a'}
+    | do Match {'a'}
          ($$ : uint 8) <- Match {'a'}
          pure $$
     }
  
-Det008.Main_ : Grammar {} =
-  do Det008.T1_
-     Det008.T2_
-     Det008.T3_
-     END
+Det008.Main : Grammar {} =
+  do Det008.T1
+     Det008.T2
+     Det008.T3
+     ($$ : {}) <- END
+     pure $$

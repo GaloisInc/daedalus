@@ -11,7 +11,3 @@ T035.Main : Grammar (uint 16) =
      (y : uint 8) <- Match UInt8
      ($$ : uint 16) <- pure (x # y)
      pure $$
- 
-T035.Main_ : Grammar {} =
-  do @Match UInt8
-     @Match UInt8

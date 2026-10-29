@@ -35,7 +35,6 @@ module Daedalus.Driver
   , parseModuleFromFileAs
   , passResolve
   , passTC
-  , passDeadVal
   , passNoLoops
   , passNoBitdata  
   , passNoMatch
@@ -45,6 +44,7 @@ module Daedalus.Driver
   , passStripFail
   , passSpecTys
   , passConstFold
+  , passDeadValCore
   , passDeterminize
   , passNorm
   , passAddNodeIDs
@@ -125,7 +125,6 @@ import qualified Daedalus.Scope as Scope
 import Daedalus.Type(inferRules,partialTypesModule)
 import Daedalus.Type.Monad
   ( TypeError, runMTypeM, runMTypeMPartial, TCConfig(..), TypeWarning )
-import Daedalus.Type.DeadVal(ArgInfo,deadValModule)
 import Daedalus.Type.NormalizeTypeVars(normTCModule)
 import Daedalus.Type.Free(topoOrder)
 import Daedalus.Type.Pretty(ppRuleType)
@@ -139,6 +138,7 @@ import qualified Daedalus.Core.NoBitdata as Core
 import qualified Daedalus.Core.StripFail as Core
 import qualified Daedalus.Core.SpecialiseType as Core
 import qualified Daedalus.Core.ConstFold as Core
+import qualified Daedalus.Core.DeadVal as Core
 import qualified Daedalus.Core.Determinize as Core
 import qualified Daedalus.Core.Effect as Core
 import qualified Daedalus.Core.ShrinkBiasedOr as Core
@@ -171,7 +171,7 @@ ddlPassFromFile pass file =
 
 -- | Do all front end-passes for this module and its dependencies.
 ddlLoadModule :: ModuleName -> Daedalus ()
-ddlLoadModule = passDeadVal
+ddlLoadModule = passTC
 
 
 -- | Get the phase associated with the given module, if any.
@@ -301,10 +301,6 @@ data State = State
   , declaredTypes :: Map TCTyName TCTyDecl
     -- ^ Types declared in all typechecked modules
 
-  , matchingFunctions :: Map Name ArgInfo -- XXX: ArgInfo is not a good name
-    -- ^ Information about a variant of a rule that does not
-    -- construct a semantic value, and how to call it.
-
   , coreTopNames :: Map Name Core.FName
     -- ^ Maps top-level value names to core names.
 
@@ -331,7 +327,6 @@ defaultState = State
   , moduleDefines       = Map.empty
   , ruleTypes           = Map.empty
   , declaredTypes       = Map.empty
-  , matchingFunctions   = Map.empty
   , coreTopNames        = Map.empty
   , coreTypeNames       = Map.empty
   , debugMode           = False
@@ -353,7 +348,6 @@ data ModulePhase =
   | ParsedModule Module                       -- ^ Only parsed
   | ResolvedModule Module                     -- ^ Scoping was done
   | TypeCheckedModule (TCModule SourceRange)  -- ^ Typechecking was done
-  | DeadValModule (TCModule SourceRange)      -- ^ Unused value analysis
   | SpecializedModule (TCModule SourceRange)  -- ^ Specialized
   | CoreModule Core.Module                    -- ^ Core module
   | VMModule VM.Module                        -- ^ VM module
@@ -363,7 +357,6 @@ data Pass =
     PassParse
   | PassRessolve
   | PassTC
-  | PassDeadVal
   | PassSpec
   | PassCore
   | PassVM
@@ -376,7 +369,6 @@ phasePass ph =
     ParsedModule {}       -> PassParse
     ResolvedModule {}     -> PassRessolve
     TypeCheckedModule {}  -> PassTC
-    DeadValModule {}      -> PassDeadVal
     SpecializedModule {}  -> PassSpec
     CoreModule {}         -> PassCore
     VMModule {}           -> PassVM
@@ -396,7 +388,6 @@ astTC :: ModulePhase -> Maybe (TCModule SourceRange)
 astTC ph =
   case ph of
     TypeCheckedModule tc -> Just tc
-    DeadValModule tc     -> Just tc
     SpecializedModule tc -> Just tc
     _                    -> Nothing
 
@@ -682,18 +673,6 @@ tcModulePartial m =
   ppTCWarn xs = ddlPutStrLn $ show $ vcat [ "[WARNING]" <+> pp x | x <- xs ]
 
 
-analyzeDeadVal :: TCModule SourceRange -> Daedalus ()
-analyzeDeadVal m =
-  do ddlDebug ("DeadVal " ++ show (tcModuleName m))
-     mfs <- ddlGet matchingFunctions
-     r <- ddlRunPass (deadValModule mfs m)
-     case r of
-       (m1,mfs1) -> ddlUpdate_ \s -> s
-          { loadedModules = Map.insert (tcModuleName m1) (DeadValModule m1)
-                                       (loadedModules s)
-          , matchingFunctions = mfs1
-          }
-
 fromMName :: Core.MName -> ModuleName
 fromMName (Core.MName x) = x
 
@@ -761,20 +740,7 @@ passTC m =
             tcModule ast
        _ -> pure ()
 
--- | (4) Replace parsing functions with matching functions when semantic values
--- are not used.
-passDeadVal :: ModuleName -> Daedalus ()
-passDeadVal m =
-  do passTC m
-     ph <- doGetLoaded m
-     case ph of
-       TypeCheckedModule ast ->
-         do inProgress m
-            mapM_ passDeadVal (astImports ph)
-            analyzeDeadVal ast
-       _ -> pure ()
-
-{- | (5) Specialize for the given set of roots.
+{- | (4) Specialize for the given set of roots.
 WARNING: The module name should be a new module name where we store the result
 of specialization, which is different from how the other passes work. -}
 passSpecialize :: ModuleName -> [(ModuleName,Ident)] -> Daedalus ()
@@ -845,7 +811,7 @@ passSpecialize tgt roots =
 
 
 
--- | (6) Convert the given module to core.  For the moment, the module
+-- | (5) Convert the given module to core.  For the moment, the module
 -- should be one generated by the specialize pass, although in principle
 -- we could allow other modules that already follow the invariant
 -- ensured by specialize (i.e., no polymorphism, etc.)
@@ -900,6 +866,9 @@ passSpecTys = coreToCore "specialise types" Core.specialiseTypes
 
 passConstFold :: ModuleName -> Daedalus ()
 passConstFold = coreToCore "specialise types" Core.constFold
+
+passDeadValCore :: ModuleName -> Daedalus ()
+passDeadValCore = coreToCore "dead value" Core.deadVal
 
 passDeterminize :: ModuleName -> Daedalus ()
 passDeterminize = coreToCore "determinize" (pure . Core.determinizeModule)

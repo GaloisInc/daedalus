@@ -21,6 +21,3 @@ T037.Main : Grammar T037.Main =
            t_or = t_or,
            t_xor = t_xor,
            t_comp = t_comp}
- 
-T037.Main_ : Grammar {} =
-  pure {}

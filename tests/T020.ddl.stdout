@@ -10,6 +10,3 @@ T020.Main : Grammar [uint 8] =
   do (_1 : [[uint 8]]) <- pure ["Hello",
                                 "World"]
      pure (concat _1)
- 
-T020.Main_ : Grammar {} =
-  pure {}

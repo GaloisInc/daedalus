@@ -296,6 +296,7 @@ doToCore opts mm =
   do let entries = parseEntries opts mm
      passSpecialize specMod entries
      passCore specMod
+     passDeadValCore specMod
      when (optNoBitdata opts) (passNoBitdata specMod)
      ents <- mapM (uncurry ddlGetFName) entries
      when (optInline opts)

@@ -12,81 +12,16 @@ module Det007
  
 --- Rules:
  
-Det007.A_ : Grammar {} =
-  @Match {'a'}
- 
-Det007.B_ : Grammar {} =
-  @Match {'b'}
- 
-Det007.Test1_ : Grammar {} =
-  Choose biased
-    { Choose fair
-        { do Det007.A_
-             Det007.B_
-        | Det007.B_
-        }
-    | Det007.A_
-    }
- 
-Det007.Test2_ : Grammar {} =
-  Choose fair
-    { Choose biased
-        { do Det007.A_
-             Det007.B_
-        | Det007.B_
-        }
-    | Det007.A_
-    }
- 
-Det007.C_ : Grammar {} =
-  @Match {'c'}
- 
-Det007.D_ : Grammar {} =
-  @Match {'d'}
- 
-Det007.Test3_ : Grammar {} =
-  Choose fair
-    { Choose biased
-        { do Det007.A_
-             Det007.B_
-        | do Det007.A_
-             Det007.B_
-             Det007.C_
-        }
-    | do Det007.A_
-         Det007.D_
-    }
- 
-Det007.Test4_ : Grammar {} =
-  Choose biased
-    { Det007.A_
-    | pure {}
-    }
- 
-Det007.Main : Grammar {} =
-  do Det007.Test1_
-     Det007.Test2_
-     Det007.Test3_
-     Det007.Test4_
-     ($$ : {}) <- END
-     pure $$
- 
 Det007.A : Grammar (uint 8) =
   Match {'a'}
  
 Det007.B : Grammar (uint 8) =
   Match {'b'}
  
-Det007.C : Grammar (uint 8) =
-  Match {'c'}
- 
-Det007.D : Grammar (uint 8) =
-  Match {'d'}
- 
 Det007.Test1 : Grammar (uint 8) =
   Choose biased
     { Choose fair
-        { do Det007.A_
+        { do Det007.A
              ($$ : uint 8) <- Det007.B
              pure $$
         | Det007.B
@@ -97,7 +32,7 @@ Det007.Test1 : Grammar (uint 8) =
 Det007.Test2 : Grammar (uint 8) =
   Choose fair
     { Choose biased
-        { do Det007.A_
+        { do Det007.A
              ($$ : uint 8) <- Det007.B
              pure $$
         | Det007.B
@@ -105,31 +40,39 @@ Det007.Test2 : Grammar (uint 8) =
     | Det007.A
     }
  
+Det007.C : Grammar (uint 8) =
+  Match {'c'}
+ 
+Det007.D : Grammar (uint 8) =
+  Match {'d'}
+ 
 Det007.Test3 : Grammar (uint 8) =
   Choose fair
     { Choose biased
-        { do Det007.A_
+        { do Det007.A
              ($$ : uint 8) <- Det007.B
              pure $$
-        | do Det007.A_
-             Det007.B_
+        | do Det007.A
+             Det007.B
              ($$ : uint 8) <- Det007.C
              pure $$
         }
-    | do Det007.A_
+    | do Det007.A
          ($$ : uint 8) <- Det007.D
          pure $$
     }
  
 Det007.Test4 : Grammar {} =
   Choose biased
-    { Det007.A_
+    { do Det007.A
+         pure {}
     | pure {}
     }
  
-Det007.Main_ : Grammar {} =
-  do Det007.Test1_
-     Det007.Test2_
-     Det007.Test3_
-     Det007.Test4_
-     END
+Det007.Main : Grammar {} =
+  do Det007.Test1
+     Det007.Test2
+     Det007.Test3
+     Det007.Test4
+     ($$ : {}) <- END
+     pure $$

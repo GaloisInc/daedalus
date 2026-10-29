@@ -18,6 +18,3 @@ array-length.Main : Grammar array-length.Main =
      (len : uint 64) <- pure (length arr)
      pure {arr = arr,
            len = len}
- 
-array-length.Main_ : Grammar {} =
-  pure {}

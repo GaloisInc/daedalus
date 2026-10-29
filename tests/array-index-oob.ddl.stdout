@@ -18,11 +18,3 @@ array-index-oob.Main : Grammar array-index-oob.Main =
      (val_at_1 : int) <- Index arr 6
      pure {arr = arr,
            val_at_1 = val_at_1}
- 
-array-index-oob.Main_ : Grammar {} =
-  do (arr : [int]) <- pure [1,
-                            2,
-                            4,
-                            5,
-                            6]
-     @Index arr 6

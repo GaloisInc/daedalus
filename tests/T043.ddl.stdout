@@ -18,9 +18,3 @@ T043.Main : Grammar T043.Main =
   T043.P T043.Main T043.Main0 do (x : bool) <- pure true
                                  pure {x = x} do (y : [uint 8]) <- MatchBytes "A"
                                                  pure {y = y}
- 
-T043.P_ ?a0 ?a1 (R_ : Grammar {}) : Grammar {} =
-  R_
- 
-T043.Main_ : Grammar {} =
-  T043.P_ T043.Main T043.Main0 (@MatchBytes "A")

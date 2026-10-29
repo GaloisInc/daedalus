@@ -25,11 +25,3 @@ rec value
       | {- nil -} do (_4 : {}) <- pure {}
                      pure {nil: _4}
       }
- 
-T003.List_ : Grammar {} =
-  Choose biased
-    { {- node -} do @Match UInt8
-                    T003.List
-                    pure {}
-    | {- nil -} pure {}
-    }

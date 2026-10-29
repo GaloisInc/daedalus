@@ -7,10 +7,6 @@ module T021
 --- Rules:
  
 T021.Main : Grammar {} =
-  do @Many[] @Match {'0'}
+  do Many[] Match {'0'}
      ($$ : {}) <- END
      pure $$
- 
-T021.Main_ : Grammar {} =
-  do @Many[] @Match {'0'}
-     END

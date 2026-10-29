@@ -15,9 +15,19 @@ type T =
  
 -------------
  
+-- entry pont
+-- may fail
+-- ./Det006.ddl:3:1--3:21
+proc Main() : () =
+  -- ./Det006.ddl:3:14--3:21
+  do -- ./Det006.ddl:3:14--3:14
+     T__27()
+     -- ./Det006.ddl:3:17--3:19
+     matchEnd
+ 
 -- may fail
 -- ./Det006.ddl:5:1--15:1
-proc T_() : () =
+proc T__27() : () =
   -- ./Det006.ddl:5:9--15:1
   -- DETERMINIZE 2 Fully
   do _x0 <- match1 { ... }
@@ -25,11 +35,13 @@ proc T_() : () =
        120 ->
          -- ./Det006.ddl:6:5--6:45
          -- all_sound_off
+         -- ./Det006.ddl:6:5--6:45
          -- ./Det006.ddl:6:26--6:45
          match_ "\NUL"
        121 ->
          -- ./Det006.ddl:7:5--7:45
          -- reset_controllers
+         -- ./Det006.ddl:7:5--7:45
          -- ./Det006.ddl:7:26--7:45
          match_ "\NUL"
        122 ->
@@ -38,51 +50,46 @@ proc T_() : () =
               0 ->
                 -- ./Det006.ddl:8:5--8:45
                 -- local_control_off
-                -- ./Det006.ddl:8:26--8:45
+                -- ./Det006.ddl:8:5--8:45
+                -- ./Det006.ddl:8:25--8:45
                 pure ()
               127 ->
                 -- ./Det006.ddl:9:5--9:45
                 -- local_control_on
-                -- ./Det006.ddl:9:26--9:45
+                -- ./Det006.ddl:9:5--9:45
+                -- ./Det006.ddl:9:25--9:45
                 pure ()
               _ ->
                 fail_sys @()
        123 ->
          -- ./Det006.ddl:10:5--10:45
          -- all_notes_off
+         -- ./Det006.ddl:10:5--10:45
          -- ./Det006.ddl:10:26--10:45
          match_ "\NUL"
        124 ->
          -- ./Det006.ddl:11:5--11:45
          -- omni_off
+         -- ./Det006.ddl:11:5--11:45
          -- ./Det006.ddl:11:26--11:45
          match_ "\NUL"
        125 ->
          -- ./Det006.ddl:12:5--12:45
          -- omni_on
+         -- ./Det006.ddl:12:5--12:45
          -- ./Det006.ddl:12:26--12:45
          match_ "\NUL"
        126 ->
          -- ./Det006.ddl:13:5--13:55
          -- mono_on
-         -- ./Det006.ddl:13:27--13:55
+         -- ./Det006.ddl:13:5--13:55
          -- ./Det006.ddl:13:41--13:53
          match1_ { 0 @(Word 8) .. 16 @(Word 8) }
        127 ->
          -- ./Det006.ddl:14:5--14:45
          -- poly_on
+         -- ./Det006.ddl:14:5--14:45
          -- ./Det006.ddl:14:26--14:45
          match_ "\NUL"
        _ ->
          fail_sys @()
- 
--- entry pont
--- may fail
--- ./Det006.ddl:3:1--3:21
-proc Main() : () =
-  -- ./Det006.ddl:3:14--3:21
-  do -- ./Det006.ddl:3:14--3:14
-     T_()
-     -- ./Det006.ddl:3:17--3:21
-     -- ./Det006.ddl:3:17--3:19
-     matchEnd

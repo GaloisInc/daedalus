@@ -132,7 +132,6 @@ library
                        Daedalus.Type.Subst,
                        Daedalus.Type.Traverse,
                        Daedalus.Type.Free,
-                       Daedalus.Type.DeadVal,
                        Daedalus.Type.CheckUnused,
                        Daedalus.Type.RefreshGUID,
                        Daedalus.Type.NormalizeTypeVars,

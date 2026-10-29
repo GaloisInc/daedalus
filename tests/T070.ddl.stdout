@@ -14,7 +14,8 @@ T070.f ?a0 ?a1 (HasStruct ?a0 l ?a1) (x : ?a0) : ?a1 =
   x.l
  
 T070.P ?a0 (Coerce safe ?a0 int) (Coerce dynamic ?a0 int) (Coerce trunc ?a0 int) (x : ?a0) : Grammar int =
-  do @(x AS int)
+  do pure (x as int)
+     x AS int
      ($$ : int) <- pure (x as int)
      pure $$
  
@@ -22,20 +23,8 @@ T070.J ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) (x : uint ?a0) (y : uint ?a1) : Grammar (ui
   pure (x # y)
  
 T070.L ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Traversable ?a0) (Arith ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar ?a3 =
-  do ($$ : ?a3) <- map ((i : ?a2) in x)
+  do for ((s : ?a2) = 0; (i : ?a2) in x)
+       (pure (s + i))
+     ($$ : ?a3) <- map ((i : ?a2) in x)
                      (pure true)
      pure $$
- 
-T070.Main_ ?a0 (Literal 1 ?a0) (Literal 2 ?a0) (Arith ?a0) : Grammar {} =
-  pure {}
- 
-T070.P_ ?a0 (Coerce safe ?a0 int) (Coerce dynamic ?a0 int) (Coerce trunc ?a0 int) (x : ?a0) : Grammar {} =
-  @(x AS int)
- 
-T070.J_ ?a0 ?a1 ?a2 (?a0 + ?a1 = ?a2) : Grammar {} =
-  pure {}
- 
-T070.L_ ?a0 ?a1 ?a2 ?a3 (Literal 0 ?a2) (HasKey ?a0 ?a1) (HasElement ?a0 ?a2) (Traversable ?a0) (Arith ?a2) (HasKey ?a3 ?a1) (HasElement ?a3 bool) (Mappable ?a0 ?a3) (x : ?a0) : Grammar {} =
-  do map ((i : ?a2) in x)
-       (pure true)
-     pure {}

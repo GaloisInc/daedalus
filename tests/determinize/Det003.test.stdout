@@ -23,9 +23,11 @@ proc Gram1() : () =
                 do _x2 <- match1 { ... }
                    case _x2 of
                      99 ->
-                       -- ./Det003.ddl:6:7--6:17
+                       -- ./Det003.ddl:6:6--6:17
+                       -- ./Det003.ddl:6:6--6:17
                        pure ()
                      100 ->
+                       -- ./Det003.ddl:7:6--7:18
                        -- ./Det003.ddl:7:7--7:18
                        match_ "e"
                      _ ->

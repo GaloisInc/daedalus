@@ -16,9 +16,3 @@ T005.Num : Grammar int =
      ($$ : int) <- pure (for ((val : int) = 0; (d : uint 8) in ds)
                            ((val * 10) + (d as int)))
      pure $$
- 
-T005.P_ : Grammar {} =
-  @Match UInt8
- 
-T005.Num_ : Grammar {} =
-  @Many[ 1 .. ] @Match ('0' .. '9')

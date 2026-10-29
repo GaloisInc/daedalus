@@ -20,9 +20,3 @@ T077.Main : Grammar T077.P =
      (a : uint 8) <- pure 'a'
      pure {b = b,
            a = a}
- 
-T077.P_ : Grammar {} =
-  @Many[] @Match UInt8
- 
-T077.Main_ : Grammar {} =
-  pure {}

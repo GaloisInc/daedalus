@@ -22,14 +22,3 @@ T066.Main : Grammar T066.Main =
                      pure {x: _3}
         }
     }
- 
-T066.Main_ : Grammar {} =
-  Choose biased
-    { Choose biased
-        { {- x -} @Match UInt8
-        | {- y -} @Match UInt8
-        }
-    | Choose biased
-        { {- x -} @Match UInt8
-        }
-    }

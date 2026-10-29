@@ -80,29 +80,3 @@ T051.Main : Grammar T051.Main =
            f = f,
            g = g,
            h = h}
- 
-T051.Mp_ : Grammar {} =
-  do for ((s : Map (uint 64) int) = empty; (k : uint 64), (x : int) in T051.xs)
-       (Insert k x s)
-     pure {}
- 
-T051.Main_ : Grammar {} =
-  do do map ((x : int) in T051.xs)
-          (pure (x + 1))
-        pure {}
-     do map ((k : uint 64), (x : int) in T051.xs)
-          (pure let k = k in
-                let x = x + 1 in
-                {k = k,
-                 x = x})
-        pure {}
-     (m : Map (uint 64) int) <- T051.Mp
-     do map ((x : int) in m)
-          (pure (x + 1))
-        pure {}
-     map ((k : uint 64), (x : int) in m)
-       (pure let k = k in
-             let x = x + 1 in
-             {k = k,
-              x = x})
-     pure {}

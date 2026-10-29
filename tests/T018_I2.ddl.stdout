@@ -8,6 +8,3 @@ module T018_I2
  
 T018_I2.Dup : Grammar [uint 8] =
   MatchBytes "Dup"
- 
-T018_I2.Dup_ : Grammar {} =
-  @MatchBytes "Dup"

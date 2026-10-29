@@ -11,15 +11,10 @@ type D002.Main0 = Choose { a: uint 8
  
 D002.Main : Grammar {} =
   do Choose biased
-       { {- a -} @Match {'b'}
-       | {- b -} @Match {'b'}
+       { {- a -} do (_1 : uint 8) <- Match {'b'}
+                    pure {a: _1}
+       | {- b -} do (_2 : uint 8) <- Match {'b'}
+                    pure {b: _2}
        }
      ($$ : {}) <- END
      pure $$
- 
-D002.Main_ : Grammar {} =
-  do Choose biased
-       { {- a -} @Match {'b'}
-       | {- b -} @Match {'b'}
-       }
-     END

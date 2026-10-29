@@ -21,12 +21,3 @@ rec value
  
 T001.g ?a0 : ?a0 =
   T001.f ?a0 (uint 8) 'x'
- 
-T001.P_ ?a0 (A_ : Grammar {}) : Grammar {} =
-  A_
- 
-T001.F_ : Grammar {} =
-  T001.P_ (uint 8) (@Match {'a'})
- 
-T001.G_ : Grammar {} =
-  T001.P_ [uint 8] (@MatchBytes "B")

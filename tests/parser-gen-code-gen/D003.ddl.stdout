@@ -10,7 +10,3 @@ D003.Main : Grammar [uint 8] =
   do ($$ : [uint 8]) <- Many[] Match {'0'}
      END
      pure $$
- 
-D003.Main_ : Grammar {} =
-  do @Many[] @Match {'0'}
-     END

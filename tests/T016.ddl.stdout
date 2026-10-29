@@ -23,7 +23,7 @@ Number.Natural : Grammar int =
        (pure (Number.addDigit int val d))
  
 Number.Frac ?a0 (Arith ?a0) (Literal 1 ?a0) (n : uint 64) (w : Number.Frac ?a0) : Grammar (Number.Frac ?a0) =
-  do (ds : [int]) <- do @Match {'.'}
+  do (ds : [int]) <- do Match {'.'}
                         ($$ : [int]) <- Many[ n .. ] Number.Digit
                         pure $$
      ($$ : Number.Frac ?a0) <- pure (for ((val : Number.Frac ?a0) = w; (d : int) in ds)
@@ -47,25 +47,6 @@ Number.HexDigit : Grammar int =
              pure (_27 as int)
         }
     }
- 
-Number.Digit_ : Grammar {} =
-  @Match ('0' .. '9')
- 
-Number.Natural_ : Grammar {} =
-  @Many[ 1 .. ] Number.Digit_
- 
-Number.Frac_ ?a0 (Arith ?a0) (Literal 1 ?a0) (n : uint 64) : Grammar {} =
-  do @Match {'.'}
-     @Many[ n .. ] Number.Digit_
- 
-Number.HexDigit_ : Grammar {} =
-  Choose biased
-    { Number.Digit_
-    | Choose biased
-        { @Match ('a' .. 'f')
-        | @Match ('A' .. 'F')
-        }
-    }
 module T016
  
 --- Imports:
@@ -77,6 +58,3 @@ import Number
  
 T016.Main : Grammar int =
   Number.Natural
- 
-T016.Main_ : Grammar {} =
-  Number.Natural_

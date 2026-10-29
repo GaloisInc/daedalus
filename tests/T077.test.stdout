@@ -8,8 +8,8 @@ type P =
  
 .function Main
   .root
-  .entry L_0_Main9
-  L_0_Main9(ra0o : Input): /* normal block */
+  .entry L_0_Main7
+  L_0_Main7(ra0o : Input): /* normal block */
     r0 = "bb"()
     r1 = newStruct @P(97 @(Word 8), r0)
     popDebug

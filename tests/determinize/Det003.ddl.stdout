@@ -12,8 +12,10 @@ type Det003.Main = { x: {}
  
 Det003.Gram1 : Grammar {} =
   Choose biased
-    { @MatchBytes "abc"
-    | @MatchBytes "abde"
+    { do MatchBytes "abc"
+         pure {}
+    | do MatchBytes "abde"
+         pure {}
     }
  
 Det003.Gram2 : Grammar [uint 8] =
@@ -53,44 +55,3 @@ Det003.Main : Grammar Det003.Main =
      pure {x = x,
            y = y,
            z = z}
- 
-Det003.Gram1_ : Grammar {} =
-  Choose biased
-    { @MatchBytes "abc"
-    | @MatchBytes "abde"
-    }
- 
-Det003.Gram2_ : Grammar {} =
-  Choose biased
-    { @MatchBytes "abc"
-    | @MatchBytes "abde"
-    }
- 
-Det003.Gram3_ : Grammar {} =
-  Choose biased
-    { Choose biased
-        { Choose biased
-            { Choose biased
-                { Choose biased
-                    { Choose biased
-                        { Choose biased
-                            { @MatchBytes "000 AAAAA"
-                            | @MatchBytes "001 BBBBB"
-                            }
-                        | @MatchBytes "010 CCCCC"
-                        }
-                    | @MatchBytes "011 DDDDD"
-                    }
-                | @MatchBytes "100 EEEEE"
-                }
-            | @MatchBytes "101 FFFFF"
-            }
-        | @MatchBytes "110 GGGGG"
-        }
-    | @MatchBytes "111 HHHHH"
-    }
- 
-Det003.Main_ : Grammar {} =
-  do Det003.Gram1_
-     Det003.Gram2_
-     Det003.Gram3_

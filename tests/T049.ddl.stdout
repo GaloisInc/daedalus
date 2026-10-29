@@ -24,49 +24,24 @@ T049.V : Grammar T049.V =
                     pure {null: _10}
     }
  
-T049.ResolveDeclRef (x : int) : Grammar T049.TD
- 
-T049.ResolveRef (x : int) : Grammar T049.V =
-  do (p : T049.TD) <- T049.ResolveDeclRef x
-     ($$ : T049.V) <- case p.obj is
-                        { {| value = _12 |} -> pure _12
-                        }
-     pure $$
- 
-T049.TDDef : Grammar T049.TDDef =
-  Choose biased
-    { {- stream -} do (_13 : T049.V) <- T049.ResolveRef 0
-                      pure {stream: _13}
-    | {- value -} do (_14 : T049.V) <- T049.V
-                     pure {value: _14}
-    }
- 
-T049.TD : Grammar T049.TD =
-  do (obj : T049.TDDef) <- T049.TDDef
-     pure {obj = obj}
- 
-T049.V_ : Grammar {} =
-  Choose biased
-    { {- num -} @Match UInt8
-    | {- null -} pure {}
-    }
- 
-T049.TD_ : Grammar {} =
-  do T049.TDDef
-     pure {}
- 
-T049.ResolveDeclRef_ (x : int) : Grammar {} =
-  do T049.ResolveDeclRef x
-     pure {}
- 
-T049.ResolveRef_ (x : int) : Grammar {} =
-  do (p : T049.TD) <- T049.ResolveDeclRef x
-     case p.obj is
-       { {| value = _12 |} -> pure {}
-       }
- 
-T049.TDDef_ : Grammar {} =
-  Choose biased
-    { {- stream -} T049.ResolveRef_ 0
-    | {- value -} T049.V_
-    }
+rec value
+  T049.TD : Grammar T049.TD =
+    do (obj : T049.TDDef) <- T049.TDDef
+       pure {obj = obj}
+   
+  T049.ResolveDeclRef (x : int) : Grammar T049.TD
+   
+  T049.ResolveRef (x : int) : Grammar T049.V =
+    do (p : T049.TD) <- T049.ResolveDeclRef x
+       ($$ : T049.V) <- case p.obj is
+                          { {| value = _12 |} -> pure _12
+                          }
+       pure $$
+   
+  T049.TDDef : Grammar T049.TDDef =
+    Choose biased
+      { {- stream -} do (_13 : T049.V) <- T049.ResolveRef 0
+                        pure {stream: _13}
+      | {- value -} do (_14 : T049.V) <- T049.V
+                       pure {value: _14}
+      }
