@@ -14,6 +14,7 @@ import           Control.Concurrent            (threadDelay)
 import           Control.Concurrent.Async      (Async, async, cancel)
 import           Control.Concurrent.STM        (atomically, readTChan,
                                                 writeTChan, writeTVar)
+import           Control.Exception             (try, IOException)
 import           Control.Lens                  hiding ((<.>))
 import           Control.Monad                 (filterM, forever, void)
 import           Control.Monad.State
@@ -288,7 +289,11 @@ addModule filename ms txt = do
       Just (ModuleState ms toksSt
                         emptyPassStatus emptyPassStatus emptyPassStatus)
 
-addModuleFromFile :: ServerState -> ModuleSource -> ModuleName -> WorkerM ()
+-- | Try to resolve and read an imported module using the configured search
+-- paths. A 'Left' result means the file could not be read, and no changes were
+-- made to the worker state.
+addModuleFromFile :: ServerState -> ModuleSource -> ModuleName ->
+                     WorkerM (Either IOException ())
 addModuleFromFile sst importer mn = do
   Config paths <- liftIO $ runLspT (lspEnv sst) getConfig
   let importerDir = moduleSourceToDir importer
@@ -299,13 +304,18 @@ addModuleFromFile sst importer mn = do
         | isAbsolute path = [path]
         | otherwise       = map (</> path) roots
       modulePaths = importerDir : concatMap resolvePath paths
-  mFilename <- liftIO $ resolveModulePath modulePaths mn
-  traverse_ addFile mFilename
-  where
-    addFile filename = do
-      absoluteFilename <- liftIO $ makeAbsolute filename
-      txt <- liftIO $ Text.readFile absoluteFilename
-      addModule absoluteFilename (FileModule absoluteFilename) txt
+  fileE <- liftIO $ try $ do
+    mFilename <- resolveModulePath modulePaths mn
+    traverse (\filename -> do
+                absoluteFilename <- makeAbsolute filename
+                txt <- Text.readFile absoluteFilename
+                pure (absoluteFilename, txt))
+             mFilename
+  case fileE of
+    Left e -> pure (Left e)
+    Right Nothing -> pure (Right ())
+    Right (Just (filename, txt)) ->
+      Right <$> addModule filename (FileModule filename) txt
 
 addModuleFromRequest :: J.NormalizedUri -> J.Int32 -> Text -> WorkerM ()
 addModuleFromRequest uri version txt = do
@@ -318,9 +328,9 @@ addModuleFromRequest uri version txt = do
 -- ----------------------------------------------------------------------------------------
 -- Parsing
 
--- Ensure all modules are parsed (or parsing has been attempted) and
+-- | Ensure all modules are parsed (or parsing has been attempted) and
 -- all imports have been loaded.  Note that after this, a missing
--- import means that the file itself was missing.  
+-- import means that the file itself was missing.
 
 parseAll :: ServerState -> WorkerM ()
 parseAll sst = do
@@ -342,7 +352,10 @@ parseAll sst = do
       (_, e_m) <- statusAt msParsedModule mn
       let allImps = either (const mempty) (map importModule . moduleImports) e_m
       newImps <- filterM (\mn' -> use (wsModules . to (Map.notMember mn'))) allImps
-      -- Tokenize the new modules and add to state
+      -- Tokenize the new modules and add to state. We can safely ignore `Left`
+      -- results from `addModuleFromFile` - if we fail to populate the worker
+      -- state with information about a module we tried to import, it will just
+      -- be (correctly) reported as missing in subsequent interactions.
       traverse_ (addModuleFromFile sst ms) newImps
       go (Set.union wl' (Set.fromList newImps))
 
