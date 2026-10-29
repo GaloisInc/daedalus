@@ -53,15 +53,19 @@ run = flip E.catches handlers $ do
 
   let
     serverDefinition = ServerDefinition
-      { defaultConfig = Config ()
+      { defaultConfig = Config []
       , configSection = "daedalus"
       , onConfigChange = \_cfg -> pure ()
       , parseConfig = \_old v -> do
           case fromJSON v of
             Error e -> Left (Text.pack e)
             Success cfg -> Right cfg
-      , doInitialize = \env _ -> do
-          sst <- emptyServerState env
+      , doInitialize = \env params -> do
+          let roots =
+                case params ^. J.params . J.rootUri of
+                  J.InL uri -> maybe [] pure (J.uriToFilePath uri)
+                  J.InR _   -> []
+          sst <- emptyServerState env roots
           void $ forkIO (reactor rin)
           void $ forkIO (worker sst)
           pure (Right sst)
@@ -153,6 +157,8 @@ handle = mconcat
   , notificationHandler J.SMethod_WorkspaceDidChangeConfiguration $ \msg -> do
       cfg <- getConfig
       liftIO $ debugM "configuration changed: " (show (msg,cfg))
+      sst <- ask
+      liftIO $ atomically $ writeTChan (workerChan sst) ReconfigureReq
 
   , notificationHandler J.SMethod_TextDocumentDidChange $ \msg -> do
     let doc  = msg ^. J.params

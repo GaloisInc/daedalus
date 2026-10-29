@@ -18,15 +18,14 @@ import           Control.Lens.Getter          (view)
 import           Control.Monad.IO.Unlift      (MonadUnliftIO)
 import           Control.Monad.Reader
 import           Control.Monad.STM
-import           Data.Aeson                   (FromJSON, ToJSON)
+import           Data.Aeson                   (FromJSON (..), ToJSON, (.:?))
+import           Data.Aeson.Types             (withObject, (.!=))
 import           Data.Foldable                (traverse_, msum)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (fromMaybe)
 import           Data.Text                    (Text)
-import qualified Data.Text                    as Text
 import           GHC.Generics                 (Generic)
-import           System.FilePath              ((<.>), (</>))
 import           System.IO                    (stderr)
 
 import           Daedalus.AST                 (Module, ModuleName)
@@ -43,11 +42,10 @@ import           Daedalus.Type.Monad          (RuleEnv)
 import           Language.LSP.Server          (LanguageContextEnv, LspM,
                                                MonadLsp (..), runLspT)
 import qualified Language.LSP.Protocol.Types as J
-import qualified Language.LSP.Protocol.Lens as J
 import qualified Language.LSP.Protocol.Message as J
 
 data ModuleSource = ClientModule J.NormalizedUri J.Int32
-                  | FileModule FilePath -- FilePath here is the path to search
+                  | FileModule FilePath
                   deriving (Eq, Ord, Show)
 
 isFileModule :: ModuleSource -> Bool
@@ -59,6 +57,7 @@ isFileModule _ = False
 data WorkerRequest =
   ChangedReq J.NormalizedUri  J.Int32 Int Text -- ms delay
   | WakeUpReq
+  | ReconfigureReq
   deriving Show
 
 -- 
@@ -105,11 +104,17 @@ data ServerState =
               , workerChan   :: TChan WorkerRequest
               , moduleStates :: TVar ModuleStates
               , watchers     :: TVar (Map WatcherTag (Async ()))
+              , workspaceRoots :: [FilePath]
               }
 
 -- User-alterable config
-data Config = Config ()
-  deriving (Generic, ToJSON, FromJSON, Show)
+data Config =
+  Config { searchPaths :: [FilePath] }
+  deriving (Generic, ToJSON, Show)
+
+instance FromJSON Config where
+  parseJSON = withObject "Daedalus configuration" $ \o ->
+    Config <$> o .:? "searchPaths" .!= []
 
 newtype ServerM a = ServerM { getServerM :: ReaderT ServerState (LspM Config) a }
   deriving newtype (Applicative, Functor, Monad, MonadReader ServerState
@@ -118,9 +123,9 @@ newtype ServerM a = ServerM { getServerM :: ReaderT ServerState (LspM Config) a 
 -- This needs to be behind a IO var of some sort as we need an Iso in
 -- interpretHandler (so we thread the state using mutation).
 
-emptyServerState :: LanguageContextEnv Config -> IO ServerState
-emptyServerState lenv = do
-  ServerState lenv <$> newPassState <*> atomically newTChan <*> newTVarIO mempty <*> newTVarIO mempty
+emptyServerState :: LanguageContextEnv Config -> [FilePath] -> IO ServerState
+emptyServerState lenv roots = do
+  ServerState lenv <$> newPassState <*> atomically newTChan <*> newTVarIO mempty <*> newTVarIO mempty <*> pure roots
 
 runServerM :: ServerState ->  ServerM a -> IO a
 runServerM sst m = runLspT (lspEnv sst) (runReaderT (getServerM m) sst)
@@ -148,7 +153,7 @@ liftDaedalus m = do
     m
   where
     mstToFilename _ (ClientModule uri _) = fromMaybe "<unknown>" (J.uriToFilePath (J.fromNormalizedUri uri))
-    mstToFilename n (FileModule fp)      = fp </> Text.unpack n <.> "ddl"
+    mstToFilename _ (FileModule fp)      = fp
 
     extractTCs s
       | Just (tc, _, _) <- passStatusToMaybe (s ^. msTCRes) = Left tc

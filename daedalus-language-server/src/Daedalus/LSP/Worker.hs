@@ -28,9 +28,11 @@ import qualified Data.Text                     as Text
 import qualified Data.Text.IO                  as Text
 import           System.FilePath
 import           System.Log.Logger             (debugM)
+import           System.Directory              (makeAbsolute)
 
 import           Daedalus.AST                  (Import (..), Module (..))
-import           Daedalus.Module               (pathToModuleName)
+import           Daedalus.Module               (pathToModuleName,
+                                                resolveModulePath)
 import           Daedalus.Panic
 import           Daedalus.Parser               (parseFromTokens)
 import           Daedalus.Parser.Lexer         (Lexeme, Token, lexer)
@@ -52,7 +54,8 @@ import           Language.LSP.Diagnostics      (partitionBySource)
 import           Language.LSP.Protocol.Types   (Diagnostic (..))
 import qualified Language.LSP.Protocol.Types   as J
 import           Language.LSP.Server           (getVirtualFile,
-                                                publishDiagnostics, runLspT)
+                                                getConfig, publishDiagnostics,
+                                                runLspT)
 import           Language.LSP.VFS              (virtualFileText,
                                                 virtualFileVersion)
 
@@ -127,6 +130,13 @@ resetModulePassStatus =
   . over msParsedModule resetPassStatus
   . over msScopeRes resetPassStatus
   . over msTCRes resetPassStatus
+
+markModuleChanged :: ModuleState -> ModuleState
+markModuleChanged =
+  over msTokens (set statusChanged True)
+  . over msParsedModule (set statusChanged True)
+  . over msScopeRes (set statusChanged True)
+  . over msTCRes (set statusChanged True)
 
 -- -----------------------------------------------------------------------------
 -- Worker monad
@@ -253,7 +263,7 @@ moduleSourceToDir (ClientModule uri _) =
   case J.uriToFilePath (J.fromNormalizedUri uri) of
     Just fsrc -> fst (pathToModuleName fsrc)
     Nothing -> panic "Couldn't get filename" []
-moduleSourceToDir (FileModule dir) = dir
+moduleSourceToDir (FileModule file) = takeDirectory file
 
 -- ----------------------------------------------------------------------------------------
 -- Lexing
@@ -268,11 +278,24 @@ addModule filename ms txt = do
       Just (ModuleState ms toksSt
                         emptyPassStatus emptyPassStatus emptyPassStatus)
 
-addModuleFromFile :: FilePath -> ModuleName -> WorkerM ()
-addModuleFromFile rootDir mn = do
-  let filename = rootDir </> Text.unpack mn <.> "ddl"
-  txt <- liftIO $ Text.readFile filename
-  addModule filename (FileModule rootDir) txt
+addModuleFromFile :: ServerState -> ModuleSource -> ModuleName -> WorkerM ()
+addModuleFromFile sst importer mn = do
+  Config paths <- liftIO $ runLspT (lspEnv sst) getConfig
+  let importerDir = moduleSourceToDir importer
+      roots = case workspaceRoots sst of
+                [] -> [importerDir]
+                rs -> rs
+      resolvePath path
+        | isAbsolute path = [path]
+        | otherwise       = map (</> path) roots
+      modulePaths = importerDir : concatMap resolvePath paths
+  mFilename <- liftIO $ resolveModulePath modulePaths mn
+  traverse_ addFile mFilename
+  where
+    addFile filename = do
+      absoluteFilename <- liftIO $ makeAbsolute filename
+      txt <- liftIO $ Text.readFile absoluteFilename
+      addModule absoluteFilename (FileModule absoluteFilename) txt
 
 addModuleFromRequest :: J.NormalizedUri -> J.Int32 -> Text -> WorkerM ()
 addModuleFromRequest uri version txt = do
@@ -289,8 +312,8 @@ addModuleFromRequest uri version txt = do
 -- all imports have been loaded.  Note that after this, a missing
 -- import means that the file itself was missing.  
 
-parseAll :: WorkerM ()
-parseAll = do
+parseAll :: ServerState -> WorkerM ()
+parseAll sst = do
   allMods <- use (wsModules . to Map.keysSet)
   go allMods
   where
@@ -308,10 +331,9 @@ parseAll = do
                   (const []) parseModule mn
       (_, e_m) <- statusAt msParsedModule mn
       let allImps = either (const mempty) (map importModule . moduleImports) e_m
-          rootDir = moduleSourceToDir ms
       newImps <- filterM (\mn' -> use (wsModules . to (Map.notMember mn'))) allImps
       -- Tokenize the new modules and add to state
-      traverse_ (addModuleFromFile rootDir) newImps
+      traverse_ (addModuleFromFile sst ms) newImps
       go (Set.union wl' (Set.fromList newImps))
 
 -- Parse the module and ensure that any deps. are at least in the process of being loaded.
@@ -325,7 +347,7 @@ parseModule mn ms toks _ignored =
                case J.uriToFilePath (J.fromNormalizedUri uri) of
                  Just fp -> fp
                  Nothing -> panic "Couldn't get filename" []
-             FileModule dir -> dir </> Text.unpack mn <.> "ddl"
+             FileModule file -> file
 
 -- -----------------------------------------------------------------------------
 -- Cycles + Scope
@@ -484,8 +506,17 @@ worker sst = void $ runWorkerM go (initWorkerState (passState sst))
           -- reset the changed status of all pass state.
           modifying wsModules (fmap resetModulePassStatus)
 
+        ReconfigureReq -> do
+          cancelTimer
+          modifying wsModules
+            (fmap markModuleChanged . Map.filter (not . isFileModule . view msSource))
+          runPasses
+          publishModules
+          publishDiags sst
+          modifying wsModules (fmap resetModulePassStatus)
+
     runPasses = do
-      parseAll
+      parseAll sst
       mns <- scopeAll
       tcAll mns
     

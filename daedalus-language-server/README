@@ -17,3 +17,14 @@ Don't forget to `cabal install` and make sure the `daedalus-language-server`
 executable is on your `$PATH`. See the [`lspconfig`
 documentation](https://github.com/neovim/nvim-lspconfig#Suggested-configuration)
 for suggestions on setting up keybindings.
+
+Additional directories for resolving imported modules may be supplied through
+the `daedalus.searchPaths` LSP setting. Relative paths are resolved against the
+workspace root, and the directory containing the importing module is searched
+first. For example:
+
+    {
+      "daedalus": {
+        "searchPaths": ["specs", "shared"]
+      }
+    }
