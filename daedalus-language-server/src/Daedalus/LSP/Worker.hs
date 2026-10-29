@@ -285,10 +285,9 @@ addModuleFromRequest uri version txt = do
 -- ----------------------------------------------------------------------------------------
 -- Parsing
 
--- Ensure all modules are parsed (or parsing has been attempted) and
+-- | Ensure all modules are parsed (or parsing has been attempted) and
 -- all imports have been loaded.  Note that after this, a missing
--- import means that the file itself was missing.  
-
+-- import means that the file itself was missing.
 parseAll :: WorkerM ()
 parseAll = do
   allMods <- use (wsModules . to Map.keysSet)
