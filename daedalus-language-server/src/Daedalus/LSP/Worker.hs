@@ -14,6 +14,7 @@ import           Control.Concurrent            (threadDelay)
 import           Control.Concurrent.Async      (Async, async, cancel)
 import           Control.Concurrent.STM        (atomically, readTChan,
                                                 writeTChan, writeTVar)
+import           Control.Exception             (try, IOException)
 import           Control.Lens                  hiding ((<.>))
 import           Control.Monad                 (filterM, forever, void)
 import           Control.Monad.State
@@ -268,11 +269,16 @@ addModule filename ms txt = do
       Just (ModuleState ms toksSt
                         emptyPassStatus emptyPassStatus emptyPassStatus)
 
-addModuleFromFile :: FilePath -> ModuleName -> WorkerM ()
+-- | @addModuleFromFile rootDir mn@ will try to read a module from file at
+-- @rootDir/mn.ddl@ and add it to the `WorkerM` state. A `Left` result means the
+-- file couldn't be read, and no changes were made to the state.
+addModuleFromFile :: FilePath -> ModuleName -> WorkerM (Either IOException ())
 addModuleFromFile rootDir mn = do
   let filename = rootDir </> Text.unpack mn <.> "ddl"
-  txt <- liftIO $ Text.readFile filename
-  addModule filename (FileModule rootDir) txt
+  txtE <- liftIO $ try $ Text.readFile filename
+  case txtE of
+    Left e -> pure (Left e)
+    Right txt -> Right <$> addModule filename (FileModule rootDir) txt
 
 addModuleFromRequest :: J.NormalizedUri -> J.Int32 -> Text -> WorkerM ()
 addModuleFromRequest uri version txt = do
@@ -309,7 +315,10 @@ parseAll = do
       let allImps = either (const mempty) (map importModule . moduleImports) e_m
           rootDir = moduleSourceToDir ms
       newImps <- filterM (\mn' -> use (wsModules . to (Map.notMember mn'))) allImps
-      -- Tokenize the new modules and add to state
+      -- Tokenize the new modules and add to state. We can safely ignore `Left`
+      -- results from `addModuleFromFile` - if we fail to populate the worker
+      -- state with information about a module we tried to import, it will just
+      -- be (correctly) reported as missing in subsequent interactions.
       traverse_ (addModuleFromFile rootDir) newImps
       go (Set.union wl' (Set.fromList newImps))
 
