@@ -8,7 +8,7 @@
 -- | This module contains the worker thread, i.e., the thread which
 -- does all the parsing and type checking.
 {-# LANGUAGE DeriveFunctor #-}
-module Daedalus.LSP.Worker (requestParse, worker) where
+module Daedalus.LSP.Worker (requestParse, requestParseCurrent, worker) where
 
 import           Control.Concurrent            (threadDelay)
 import           Control.Concurrent.Async      (Async, async, cancel)
@@ -28,7 +28,7 @@ import qualified Data.Text                     as Text
 import qualified Data.Text.IO                  as Text
 import           System.FilePath
 import           System.Log.Logger             (debugM)
-import           System.Directory              (makeAbsolute)
+import           System.Directory              (doesFileExist, makeAbsolute)
 
 import           Daedalus.AST                  (Import (..), Module (..))
 import           Daedalus.Module               (pathToModuleName,
@@ -87,6 +87,16 @@ requestParse sst uri version delay = do
   traverse_ sendReq m_txt
   where
     sendReq txt = atomically $
+      writeTChan (workerChan sst) (ChangedReq uri version delay txt)
+
+requestParseCurrent :: ServerState -> J.NormalizedUri -> Int -> IO ()
+requestParseCurrent sst uri delay = do
+  m_doc <- runLspT (lspEnv sst) $ do
+    mdoc <- getVirtualFile uri
+    pure $ (\vf -> (virtualFileVersion vf, virtualFileText vf)) <$> mdoc
+  traverse_ sendReq m_doc
+  where
+    sendReq (version, txt) = atomically $
       writeTChan (workerChan sst) (ChangedReq uri version delay txt)
 
 -- The workflow is this:
@@ -497,6 +507,24 @@ worker sst = void $ runWorkerM go (initWorkerState (passState sst))
           addModuleFromRequest uri ver txt
           publishModules
           startTimer sst delay
+
+        ClosedReq uri -> do
+          let mFilename = J.uriToFilePath (J.fromNormalizedUri uri)
+              mModuleName = snd . pathToModuleName <$> mFilename
+          cancelTimer
+          case (mFilename, mModuleName) of
+            (Just filename, Just mn) -> do
+              exists <- liftIO $ doesFileExist filename
+              if exists
+                then do
+                  txt <- liftIO $ Text.readFile filename
+                  addModule filename (FileModule filename) txt
+                else wsModules . at mn .= Nothing
+            _ -> pure ()
+          modifying wsModules (fmap markModuleChanged)
+          runPasses
+          publishModules
+          publishDiags sst
           
         WakeUpReq -> do
           cancelTimer

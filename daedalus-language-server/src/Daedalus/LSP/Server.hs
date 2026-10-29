@@ -38,7 +38,8 @@ import           System.Log.Logger
 import           Daedalus.LSP.Command
 import           Daedalus.LSP.LanguageFeatures
 import           Daedalus.LSP.Monad
-import           Daedalus.LSP.Worker           (requestParse, worker)
+import           Daedalus.LSP.Worker           (requestParse,
+                                                requestParseCurrent, worker)
 
 
 -- SI for server impl.
@@ -167,15 +168,27 @@ handle = mconcat
     let uri = doc ^. J.uri . to J.toNormalizedUri
     liftIO $ debugM "reactor.handle" $ "Processing DidChangeTextDocument for: " ++ show uri
 
-    sst <- ask
+    pure ()
 
-    liftIO $ requestParse sst uri (doc ^. J.version) debounceTime
+  , notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
+      let uri = msg ^. J.params
+                    . J.textDocument
+                    . J.uri
+                    . to J.toNormalizedUri
+      sst <- ask
+      liftIO $ debugM "reactor.handle" $ "Processing didSave for: " ++ show uri
+      liftIO $ requestParseCurrent sst uri debounceTime
 
-  , notificationHandler J.SMethod_TextDocumentDidSave $ \_msg ->
-      pure ()
-
-  , notificationHandler J.SMethod_TextDocumentDidClose $ \_msg ->
-      pure ()
+  , notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> do
+      let uri = msg ^. J.params
+                    . J.textDocument
+                    . J.uri
+                    . to J.toNormalizedUri
+      sst <- ask
+      liftIO $ debugM "reactor.handle" $ "Processing didClose for: " ++ show uri
+      liftIO $ atomically $ writeTChan (workerChan sst) (ClosedReq uri)
+      let maxNDiags = 100
+      void $ publishDiagnostics maxNDiags uri Nothing mempty
 
   , requestHandler J.SMethod_TextDocumentDefinition $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"

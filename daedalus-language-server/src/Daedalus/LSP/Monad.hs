@@ -56,6 +56,7 @@ isFileModule _ = False
 
 data WorkerRequest =
   ChangedReq J.NormalizedUri  J.Int32 Int Text -- ms delay
+  | ClosedReq J.NormalizedUri
   | WakeUpReq
   | ReconfigureReq
   deriving Show
