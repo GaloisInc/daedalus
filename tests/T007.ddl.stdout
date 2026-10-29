@@ -11,32 +11,17 @@ type T007.Sign = Choose { pos: {}
  
 T007.Sign : Grammar T007.Sign =
   Choose biased
-    { {- pos -} do (_2 : {}) <- @Match {'+'}
+    { {- pos -} do (_2 : {}) <- do Match {'+'}
+                                   pure {}
                    pure {pos: _2}
-    | {- neg -} do (_3 : {}) <- @Match {'-'}
+    | {- neg -} do (_3 : {}) <- do Match {'-'}
+                                   pure {}
                    pure {neg: _3}
     | {- pos -} do (_4 : {}) <- pure {}
                    pure {pos: _4}
     }
  
 T007.SignWithCase : Grammar {} =
-  Choose biased
-    { do (_5 : uint 8) <- Match UInt8
-         case _5 is
-           { '+' -> {- case branch  '+' -} pure {}
-           ; '-' -> {- case branch  '-' -} pure {}
-           }
-    | pure {}
-    }
- 
-T007.Sign_ : Grammar {} =
-  Choose biased
-    { {- pos -} @Match {'+'}
-    | {- neg -} @Match {'-'}
-    | {- pos -} pure {}
-    }
- 
-T007.SignWithCase_ : Grammar {} =
   Choose biased
     { do (_5 : uint 8) <- Match UInt8
          case _5 is

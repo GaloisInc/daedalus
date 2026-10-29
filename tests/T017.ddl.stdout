@@ -23,7 +23,7 @@ Number.Natural : Grammar int =
        (pure (Number.addDigit int val d))
  
 Number.Frac ?a0 (Arith ?a0) (Literal 1 ?a0) (n : uint 64) (w : Number.Frac ?a0) : Grammar (Number.Frac ?a0) =
-  do (ds : [int]) <- do @Match {'.'}
+  do (ds : [int]) <- do Match {'.'}
                         ($$ : [int]) <- Many[ n .. ] Number.Digit
                         pure $$
      ($$ : Number.Frac ?a0) <- pure (for ((val : Number.Frac ?a0) = w; (d : int) in ds)
@@ -47,25 +47,6 @@ Number.HexDigit : Grammar int =
              pure (_34 as int)
         }
     }
- 
-Number.Digit_ : Grammar {} =
-  @Match ('0' .. '9')
- 
-Number.Natural_ : Grammar {} =
-  @Many[ 1 .. ] Number.Digit_
- 
-Number.Frac_ ?a0 (Arith ?a0) (Literal 1 ?a0) (n : uint 64) : Grammar {} =
-  do @Match {'.'}
-     @Many[ n .. ] Number.Digit_
- 
-Number.HexDigit_ : Grammar {} =
-  Choose biased
-    { Number.Digit_
-    | Choose biased
-        { @Match ('a' .. 'f')
-        | @Match ('A' .. 'F')
-        }
-    }
 module IntList
  
 --- Imports:
@@ -84,14 +65,12 @@ rec
 --- Rules:
  
 IntList.WS : Grammar {} =
-  @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
- 
-IntList.WS_ : Grammar {} =
-  @Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
+  do Match ((((({0} | {9}) | {12}) | {32}) | {'\n'}) | {'\r'})
+     pure {}
  
 IntList.Token ?a0 (P : Grammar ?a0) : Grammar ?a0 =
   do ($$ : ?a0) <- P
-     @Many[ 1 .. ] IntList.WS_
+     Many[ 1 .. ] IntList.WS
      pure $$
  
 rec value
@@ -105,18 +84,6 @@ rec value
       | {- nil -} do (_36 : {}) <- pure {}
                      pure {nil: _36}
       }
- 
-IntList.Token_ ?a0 (P_ : Grammar {}) : Grammar {} =
-  do P_
-     @Many[ 1 .. ] IntList.WS_
- 
-IntList.IntList_ : Grammar {} =
-  Choose biased
-    { {- cons -} do IntList.Token_ int Number.Natural_
-                    IntList.IntList
-                    pure {}
-    | {- nil -} pure {}
-    }
 module T017
  
 --- Imports:
@@ -128,6 +95,3 @@ import IntList
  
 T017.Main : Grammar IntList.IntList =
   IntList.IntList
- 
-T017.Main_ : Grammar {} =
-  IntList.IntList_

@@ -36,23 +36,3 @@ Det002.Main : Grammar Det002.Main =
      (y : [uint 8]) <- Det002.Simple2
      pure {x = x,
            y = y}
- 
-Det002.Simple1_ : Grammar {} =
-  Choose biased
-    { @MatchBytes "ab"
-    | @MatchBytes "bcde"
-    }
- 
-Det002.Simple2_ : Grammar {} =
-  Choose biased
-    { Choose biased
-        { @MatchBytes "abc"
-        | @MatchBytes "bc"
-        }
-    | do @Match {'c'}
-         @MatchBytes "b"
-    }
- 
-Det002.Main_ : Grammar {} =
-  do Det002.Simple1_
-     Det002.Simple2_

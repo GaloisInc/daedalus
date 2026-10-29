@@ -9,22 +9,20 @@ module DaedalusMain
 rec value
   T083.RecursiveDispatch : Grammar {} =
     Choose biased
-      { T083.RecursiveOperator_10
+      { T083.RecursiveOperator_5
       | Choose biased
-          { T083.RecursiveOperator_11
+          { T083.RecursiveOperator_6
           | END
           }
       }
    
-  T083.RecursiveOperator_11 : Grammar {} =
-    do do Match {'b'}
-          pure {}
+  T083.RecursiveOperator_6 : Grammar {} =
+    do Match {'b'}
        ($$ : {}) <- T083.RecursiveDispatch
        pure $$
    
-  T083.RecursiveOperator_10 : Grammar {} =
-    do do Match {'a'}
-          pure {}
+  T083.RecursiveOperator_5 : Grammar {} =
+    do Match {'a'}
        ($$ : {}) <- T083.RecursiveDispatch
        pure $$
  

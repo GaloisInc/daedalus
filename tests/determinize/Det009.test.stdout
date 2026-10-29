@@ -24,7 +24,7 @@ type IFDEntry =
 -------------
  
 -- ./Det009.ddl:47:1--52:3
-func jn_71(e : Endian, x : Word 8, y : Word 8) : Word 16 =
+func jn_52(e : Endian, x : Word 8, y : Word 8) : Word 16 =
   case e of
     BE ->
       x # y
@@ -42,35 +42,24 @@ proc Endian() : Endian =
          -- ./Det009.ddl:8:3--8:18
          -- LE
          -- ./Det009.ddl:8:3--8:18
-         do _26 <- -- ./Det009.ddl:8:9--8:18
-                   match_ "I"
+         do -- ./Det009.ddl:8:9--8:18
+            match_ "I"
+            -- ./Det009.ddl:8:8--8:18
+            let _26 = ()
             -- ./Det009.ddl:8:3--8:18
             pure (tag LE @Endian _26)
        77 ->
          -- ./Det009.ddl:9:3--9:18
          -- BE
          -- ./Det009.ddl:9:3--9:18
-         do _27 <- -- ./Det009.ddl:9:9--9:18
-                   match_ "M"
+         do -- ./Det009.ddl:9:9--9:18
+            match_ "M"
+            -- ./Det009.ddl:9:8--9:18
+            let _27 = ()
             -- ./Det009.ddl:9:3--9:18
             pure (tag BE @Endian _27)
        _ ->
          fail_sys @Endian
- 
--- may fail
--- ./Det009.ddl:52:1--52:31
-proc Word16_() : () =
-  -- ./Det009.ddl:52:16--52:31
-  do -- ./Det009.ddl:52:21--52:25
-     match1_ { ... }
-     -- ./Det009.ddl:52:27--52:31
-     match1_ { ... }
- 
--- may fail
--- ./Det009.ddl:28:1--37:3
-proc Unsgned(e : Endian) : () =
-  -- ./Det009.ddl:29:16--29:23
-  Word16_()
  
 -- may fail
 -- ./Det009.ddl:52:1--52:31
@@ -82,11 +71,11 @@ proc Word16(e : Endian) : Word 16 =
      _29 <- -- ./Det009.ddl:52:27--52:31
             match1 { ... }
      -- ./Det009.ddl:52:16--52:31
-     pure jn_71(e, _28, _29)
+     pure jn_52(e, _28, _29)
  
 -- may fail
 -- ./Det009.ddl:23:1--23:35
-proc Tag_(e : Endian, x : Word 16) : () =
+proc Tag(e : Endian, x : Word 16) : () =
   -- ./Det009.ddl:23:15--23:35
   do _30 <- -- ./Det009.ddl:23:15--23:22
             Word16(e)
@@ -101,11 +90,18 @@ proc Tag_(e : Endian, x : Word 16) : () =
          fail_sys @() "Pattern match failure"
  
 -- may fail
+-- ./Det009.ddl:28:1--37:3
+proc Unsgned(e : Endian) : () =
+  -- ./Det009.ddl:29:7--37:3
+  -- ./Det009.ddl:29:16--29:23
+  Word16__92(e)
+ 
+-- may fail
 -- ./Det009.ddl:24:1--28:3
 proc NumericTag(e : Endian, x : Word 16) : () =
   -- ./Det009.ddl:25:3--28:3
   do -- ./Det009.ddl:25:3--25:9
-     Tag_(e, x)
+     Tag(e, x)
      -- ./Det009.ddl:26:3--28:3
      -- ./Det009.ddl:26:3--26:11
      Unsgned(e)
@@ -143,7 +139,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
           let e = e
           let _28 = _x0
           let _29 = _x1
-          let _30 = jn_71(e, _28, _29)
+          let _30 = jn_52(e, _28, _29)
           let _31 = _30 == x
           -- DETCALL 
           -- ./Det009.ddl:12:17--12:34
@@ -182,7 +178,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
             let e = e
             let _28 = _x0
             let _29 = _x1
-            let _30 = jn_71(e, _28, _29)
+            let _30 = jn_52(e, _28, _29)
             let _31 = _30 == x
             -- DETCALL 
             -- ./Det009.ddl:13:17--13:34
@@ -221,7 +217,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
               let e = e
               let _28 = _x0
               let _29 = _x1
-              let _30 = jn_71(e, _28, _29)
+              let _30 = jn_52(e, _28, _29)
               let _31 = _30 == x
               -- DETCALL 
               -- ./Det009.ddl:15:17--15:34
@@ -260,7 +256,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
                 let e = e
                 let _28 = _x0
                 let _29 = _x1
-                let _30 = jn_71(e, _28, _29)
+                let _30 = jn_52(e, _28, _29)
                 let _31 = _30 == x
                 -- DETCALL 
                 -- ./Det009.ddl:16:31--16:48
@@ -299,7 +295,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
                   let e = e
                   let _28 = _x0
                   let _29 = _x1
-                  let _30 = jn_71(e, _28, _29)
+                  let _30 = jn_52(e, _28, _29)
                   let _31 = _30 == x
                   -- DETCALL 
                   -- ./Det009.ddl:18:21--18:38
@@ -338,7 +334,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
                     let e = e
                     let _28 = _x0
                     let _29 = _x1
-                    let _30 = jn_71(e, _28, _29)
+                    let _30 = jn_52(e, _28, _29)
                     let _31 = _30 == x
                     -- DETCALL 
                     -- ./Det009.ddl:19:21--19:38
@@ -372,7 +368,7 @@ proc IFDEntry(e : Endian) : IFDEntry =
                     let e = e
                     let _28 = _x0
                     let _29 = _x1
-                    let tag = jn_71(e, _28, _29)
+                    let tag = jn_52(e, _28, _29)
                     _33 <- -- ./Det009.ddl:39:3--47:3
                            -- ./Det009.ddl:21:17--21:28
                            -- DETCALL 
@@ -405,3 +401,13 @@ proc Main() : IFDEntry =
      -- ./Det009.ddl:5:3--7:3
      -- ./Det009.ddl:5:3--5:12
      IFDEntry(e)
+ 
+-- may fail
+-- ./Det009.ddl:52:1--52:31
+proc Word16__92(e : Endian) : () =
+  -- ./Det009.ddl:52:16--52:31
+  do -- ./Det009.ddl:52:21--52:25
+     match1_ { ... }
+     -- ./Det009.ddl:52:16--52:31
+     -- ./Det009.ddl:52:27--52:31
+     match1_ { ... }

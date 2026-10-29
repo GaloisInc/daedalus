@@ -7,13 +7,8 @@ module T032
 --- Rules:
  
 T032.X : Grammar {} =
-  @Match ({0} | {1})
+  do Match ({0} | {1})
+     pure {}
  
 T032.Y : Grammar [{}] =
   Many[] T032.X
- 
-T032.X_ : Grammar {} =
-  @Match ({0} | {1})
- 
-T032.Y_ : Grammar {} =
-  @Many[] T032.X_

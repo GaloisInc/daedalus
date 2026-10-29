@@ -16,9 +16,3 @@ T025.Main : Grammar T025.Main =
      (vr : uint 8) <- Lookup 'x' r
      pure {r = r,
            vr = vr}
- 
-T025.Main_ : Grammar {} =
-  do (k : uint 8) <- Match UInt8
-     (v : uint 8) <- Match UInt8
-     (r : Map (uint 8) (uint 8)) <- Insert k v empty
-     @Lookup 'x' r

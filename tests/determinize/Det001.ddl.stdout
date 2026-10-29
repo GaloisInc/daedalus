@@ -50,23 +50,28 @@ Det001.SimpleNot1 : Grammar (uint 8) =
 Det001.Simple2 : Grammar {} =
   Choose biased
     { Choose biased
-        { @Match {'A'}
-        | @Match {'B'}
+        { do Match {'A'}
+             pure {}
+        | do Match {'B'}
+             pure {}
         }
-    | @Match {'C'}
+    | do Match {'C'}
+         pure {}
     }
  
 Det001.Simple3 : Grammar (uint 8) =
   Choose biased
     { Choose biased
         { do (x : uint 8) <- Match {'a'}
-             @Match {'b'}
+             do Match {'b'}
+                pure {}
              ($$ : uint 8) <- pure x
              pure $$
         | Match {'b'}
         }
     | do (x : uint 8) <- Match {'c'}
-         @Match {'b'}
+         do Match {'b'}
+            pure {}
          ($$ : uint 8) <- pure (x + x)
          pure $$
     }
@@ -80,53 +85,3 @@ Det001.Main : Grammar Det001.Main =
            y = y,
            z = z,
            t = t}
- 
-Det001.Simple1_ : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { @Match {'a'}
-            | @Match {'b'}
-            }
-        | @Match {'c'}
-        }
-    | @Match {'d'}
-    }
- 
-Det001.SimpleNot1_ : Grammar {} =
-  Choose fair
-    { Choose fair
-        { Choose fair
-            { @Match {'e'}
-            | @Match {'f'}
-            }
-        | @Match {'f'}
-        }
-    | @Match {'g'}
-    }
- 
-Det001.Simple2_ : Grammar {} =
-  Choose biased
-    { Choose biased
-        { @Match {'A'}
-        | @Match {'B'}
-        }
-    | @Match {'C'}
-    }
- 
-Det001.Simple3_ : Grammar {} =
-  Choose biased
-    { Choose biased
-        { do @Match {'a'}
-             @Match {'b'}
-        | @Match {'b'}
-        }
-    | do @Match {'c'}
-         @Match {'b'}
-    }
- 
-Det001.Main_ : Grammar {} =
-  do Det001.Simple1_
-     Det001.SimpleNot1_
-     Det001.Simple2_
-     Det001.Simple3_

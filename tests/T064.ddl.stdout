@@ -54,11 +54,3 @@ T064.Main : Grammar T064.myBD3 =
                          pure (_8 # _9)
      ($$ : T064.myBD3) <- v AS T064.myBD3
      pure $$
- 
-T064.Main_ : Grammar {} =
-  do SetStream (arrayStream "array" ['A',
-                                     'B'])
-     (v : uint 16) <- do (_8 : uint 8) <- Match UInt8
-                         (_9 : uint 8) <- Match UInt8
-                         pure (_8 # _9)
-     @(v AS T064.myBD3)

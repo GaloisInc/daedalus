@@ -19,6 +19,3 @@ T073.Main : Grammar (uint 8) =
   do (_7 : uint 8) <- do (_6 : uint 8) <- Match T073.$x
                          pure (T073.f _6)
      pure (T073.g _7)
- 
-T073.Main_ : Grammar {} =
-  @Match T073.$x

@@ -9,14 +9,7 @@ module Det010
 Det010.Main : Grammar (uint 8) =
   Choose biased
     { do ($$ : uint 8) <- Match {0xFE}
-         @Match {0x01}
+         Match {0x01}
          pure $$
     | Match (!{0xFE})
-    }
- 
-Det010.Main_ : Grammar {} =
-  Choose biased
-    { do @Match {0xFE}
-         @Match {0x01}
-    | @Match (!{0xFE})
     }

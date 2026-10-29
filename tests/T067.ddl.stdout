@@ -22,14 +22,3 @@ T067.Main : Grammar T067.X =
     { {- x -} do (_4 : uint 8) <- Match UInt8
                  pure {x: _4}
     }
- 
-T067.X_ : Grammar {} =
-  Choose biased
-    { {- x -} @Match UInt8
-    | {- y -} @Match UInt8
-    }
- 
-T067.Main_ : Grammar {} =
-  Choose biased
-    { {- x -} @Match UInt8
-    }

@@ -18,10 +18,10 @@ Det004.Gram3 : Grammar (uint 8) =
  
 Det004.Gram1 : Grammar (uint 8) =
   Choose biased
-    { do @MatchBytes "a"
+    { do MatchBytes "a"
          ($$ : uint 8) <- Det004.Gram2
          pure $$
-    | do @MatchBytes "a"
+    | do MatchBytes "a"
          ($$ : uint 8) <- Det004.Gram3
          pure $$
     }
@@ -33,22 +33,3 @@ Det004.Main : Grammar Det004.Main =
      pure {x = x,
            y = y,
            z = z}
- 
-Det004.Gram2_ : Grammar {} =
-  @Match {'b'}
- 
-Det004.Gram3_ : Grammar {} =
-  @Match {'c'}
- 
-Det004.Gram1_ : Grammar {} =
-  Choose biased
-    { do @MatchBytes "a"
-         Det004.Gram2_
-    | do @MatchBytes "a"
-         Det004.Gram3_
-    }
- 
-Det004.Main_ : Grammar {} =
-  do Det004.Gram1_
-     Det004.Gram2_
-     Det004.Gram3_

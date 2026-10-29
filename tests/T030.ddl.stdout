@@ -9,6 +9,3 @@ module T030
 T030.Main : Grammar [int] =
   pure (concat [[1],
                 [2]])
- 
-T030.Main_ : Grammar {} =
-  pure {}

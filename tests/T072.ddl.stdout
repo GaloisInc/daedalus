@@ -15,10 +15,3 @@ T072.$x : ByteClass =
 T072.Main : Grammar (uint 8) =
   do (_4 : uint 8) <- Match T072.$x
      T072.P _4
- 
-T072.P_ : Grammar {} =
-  pure {}
- 
-T072.Main_ : Grammar {} =
-  do @Match T072.$x
-     T072.P_

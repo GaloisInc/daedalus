@@ -53,9 +53,10 @@ T044.c : T044.c =
   let x = true in
   {x = x}
  
-T044.d : T044.d =
-  let x = true in
-  {x = x}
+rec value
+  T044.d : T044.d =
+    let x = true in
+    {x = x}
  
 T044.e : T044.e =
   let x = let x = true in
@@ -92,13 +93,14 @@ T044.C : Grammar T044.C =
                  pure {y: _27}
     }
  
-T044.D : Grammar T044.D =
-  Choose biased
-    { {- x -} do (_28 : uint 8) <- Match {1}
-                 pure {x: _28}
-    | {- y -} do (_29 : uint 8) <- Match {2}
-                 pure {y: _29}
-    }
+rec value
+  T044.D : Grammar T044.D =
+    Choose biased
+      { {- x -} do (_28 : uint 8) <- Match {1}
+                   pure {x: _28}
+      | {- y -} do (_29 : uint 8) <- Match {2}
+                   pure {y: _29}
+      }
  
 T044.E : Grammar T044.E =
   Choose biased
@@ -121,45 +123,4 @@ T044.E : Grammar T044.E =
 T044.F (i : T044.A) : Grammar (uint 8) =
   case i is
     { {| x = _36 |} -> pure _36
-    }
- 
-T044.A_ : Grammar {} =
-  Choose biased
-    { {- x -} @Match {1}
-    | {- y -} @Match {2}
-    }
- 
-T044.B_ : Grammar {} =
-  Choose biased
-    { {- x -} @Match {3}
-    | {- y -} @Match {4}
-    }
- 
-T044.C_ : Grammar {} =
-  Choose biased
-    { {- x -} @Match {1}
-    | {- y -} @Match {2}
-    }
- 
-T044.D_ : Grammar {} =
-  Choose biased
-    { {- x -} @Match {1}
-    | {- y -} @Match {2}
-    }
- 
-T044.E_ : Grammar {} =
-  Choose biased
-    { {- x -} Choose biased
-                { {- x -} @Match {1}
-                | {- y -} @Match {2}
-                }
-    | {- y -} Choose biased
-                { {- x -} @Match {1}
-                | {- y -} @Match {3}
-                }
-    }
- 
-T044.F_ (i : T044.A) : Grammar {} =
-  case i is
-    { {| x = _36 |} -> pure {}
     }

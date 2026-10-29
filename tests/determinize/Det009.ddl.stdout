@@ -24,18 +24,13 @@ type Det009.IFDEntry = Choose { unknown: Det009.IFDUnknown
  
 Det009.Endian : Grammar Det009.Endian =
   Choose biased
-    { {- LE -} do (_26 : {}) <- @MatchBytes "II"
+    { {- LE -} do (_26 : {}) <- do MatchBytes "II"
+                                   pure {}
                   pure {LE: _26}
-    | {- BE -} do (_27 : {}) <- @MatchBytes "MM"
+    | {- BE -} do (_27 : {}) <- do MatchBytes "MM"
+                                   pure {}
                   pure {BE: _27}
     }
- 
-Det009.Word16_ : Grammar {} =
-  do @Match UInt8
-     @Match UInt8
- 
-Det009.Unsgned (e : Det009.Endian) : Grammar {} =
-  Det009.Word16_
  
 Det009.jn ?a0 ?a1 ?a2 (?a1 + ?a0 = ?a2) (?a0 + ?a1 = ?a2) (e : Det009.Endian) (x : uint ?a0) (y : uint ?a1) : uint ?a2 =
   case e is
@@ -48,15 +43,19 @@ Det009.Word16 (e : Det009.Endian) : Grammar (uint 16) =
      (_29 : uint 8) <- Match UInt8
      pure (Det009.jn 8 8 16 e _28 _29)
  
-Det009.Tag_ (e : Det009.Endian) (x : uint 16) : Grammar {} =
+Det009.Tag (e : Det009.Endian) (x : uint 16) : Grammar {} =
   do (_31 : bool) <- do (_30 : uint 16) <- Det009.Word16 e
                         pure (_30 == x)
      case _31 is
        { true -> pure {}
        }
  
+Det009.Unsgned (e : Det009.Endian) : Grammar {} =
+  do (format : uint 16) <- Det009.Word16 e
+     pure {}
+ 
 Det009.NumericTag (e : Det009.Endian) (x : uint 16) : Grammar {} =
-  do Det009.Tag_ e x
+  do Det009.Tag e x
      ($$ : {}) <- Det009.Unsgned e
      pure $$
  
@@ -90,50 +89,7 @@ Det009.Main : Grammar Det009.IFDEntry =
      ($$ : Det009.IFDEntry) <- Det009.IFDEntry e
      pure $$
  
-Det009.Tag (e : Det009.Endian) (x : uint 16) : Grammar {} =
-  do (_31 : bool) <- do (_30 : uint 16) <- Det009.Word16 e
-                        pure (_30 == x)
-     case _31 is
-       { true -> pure {}
-       }
- 
 Det009.Word32 (e : Det009.Endian) : Grammar (uint 32) =
   do (_42 : uint 16) <- Det009.Word16 e
      (_43 : uint 16) <- Det009.Word16 e
      pure (Det009.jn 16 16 32 e _42 _43)
- 
-Det009.Endian_ : Grammar {} =
-  Choose biased
-    { {- LE -} @MatchBytes "II"
-    | {- BE -} @MatchBytes "MM"
-    }
- 
-Det009.Unsgned_ : Grammar {} =
-  Det009.Word16_
- 
-Det009.NumericTag_ (e : Det009.Endian) (x : uint 16) : Grammar {} =
-  do Det009.Tag_ e x
-     Det009.Unsgned_
- 
-Det009.IFDUnknown_ : Grammar {} =
-  do Det009.Word16_
-     Det009.Word16_
- 
-Det009.IFDEntry_ (e : Det009.Endian) : Grammar {} =
-  Choose biased
-    { {- imageWidth -} Det009.NumericTag_ e 0x100
-    | {- imageHeight -} Det009.NumericTag_ e 0x101
-    | {- compression -} Det009.NumericTag_ e 0x103
-    | {- photometricInterpretation -} Det009.NumericTag_ e 0x106
-    | {- samplesPerPixel -} Det009.NumericTag_ e 0x115
-    | {- rowsPerStrip -} Det009.NumericTag_ e 0x116
-    | {- unknown -} Det009.IFDUnknown_
-    }
- 
-Det009.Main_ : Grammar {} =
-  do (e : Det009.Endian) <- Det009.Endian
-     Det009.IFDEntry_ e
- 
-Det009.Word32_ : Grammar {} =
-  do Det009.Word16_
-     Det009.Word16_

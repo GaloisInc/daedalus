@@ -54,6 +54,3 @@ T071.Main : Grammar T071.Main =
      (y : T071.B) <- 0 AS T071.B
      pure {x = x,
            y = y}
- 
-T071.Main_ : Grammar {} =
-  @(0 AS T071.B)

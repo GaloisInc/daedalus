@@ -13,6 +13,3 @@ T031.Main : Grammar T031.Main =
      ($$ : T031.Main) <- do (gen : uint 8) <- pure gen
                             pure {gen = gen}
      pure $$
- 
-T031.Main_ : Grammar {} =
-  @Match {'b'}

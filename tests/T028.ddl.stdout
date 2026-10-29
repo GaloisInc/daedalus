@@ -8,11 +8,6 @@ module T028
  
 T028.Main : Grammar [uint 8] =
   do ($$ : [uint 8]) <- MatchBytes "Hello"
-     @Many[] @Match UInt8
+     Many[] Match UInt8
      END
      pure $$
- 
-T028.Main_ : Grammar {} =
-  do @MatchBytes "Hello"
-     @Many[] @Match UInt8
-     END

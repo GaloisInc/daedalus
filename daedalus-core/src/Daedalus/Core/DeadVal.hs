@@ -2,9 +2,10 @@ module Daedalus.Core.DeadVal (deadVal) where
 
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes,fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Control.Monad(mapAndUnzipM)
 
 import Daedalus.GUID (HasGUID)
 import Daedalus.Panic (panic)
@@ -20,30 +21,32 @@ deadVal mo = do
   -- We allocate all matching function names before rewriting
   -- any bodies, so calls within recursive groups can always use their matchers.
   matcherNames <- Map.fromList . catMaybes <$> mapM matcherName (mGFuns mo)
-  let (cleanFuns,initialUses) = unzip (map (cleanFun matcherNames) (mGFuns mo))
-      originalFuns = Map.fromList [ (fName f,f) | f <- mGFuns mo ]
-      initial = Set.unions initialUses
-      matchers = generateMatchers matcherNames originalFuns initial
+  (cleanFuns,initialUses) <- mapAndUnzipM (cleanFun matcherNames) (mGFuns mo)
+  let originalFuns = Map.fromList [ (fName f,f) | f <- mGFuns mo ]
+  matchers <- generateMatchers matcherNames originalFuns (Set.unions initialUses)
   pure (removeDeadCode mo { mGFuns = cleanFuns ++ matchers })
 
-cleanFun :: Map FName FName -> Fun Grammar -> (Fun Grammar, Set FName)
+-- | Remove unused values in a single function.
+-- Also returns what matchers were used.
+cleanFun :: HasGUID m => Map FName FName -> Fun Grammar -> m (Fun Grammar, Set FName)
 cleanFun matcherNames f =
   case fDef f of
-    External -> (f,mempty)
-    Def g ->
-      let r = cleanR matcherNames g
-      in (f { fDef = Def (resGrammar r) }, resMatchers r)
+    External -> pure (f,mempty)
+    Def g -> do
+      r <- cleanR matcherNames g
+      pure (f { fDef = Def (resGrammar r) }, resMatchers r)
 
 generateMatchers ::
+  HasGUID m =>
   Map FName FName         {- ^ Names for matcher functions (original -> matcher) -} ->
   Map FName (Fun Grammar) {- ^ Original function definitions -} ->
   Set FName               {- ^ Non-matcher functions that need matchers -} ->
-  [Fun Grammar]
+  m [Fun Grammar]
 generateMatchers matcherNames originalFuns = go Set.empty
   where
   go done todo =
     case Set.minView todo of
-      Nothing -> []
+      Nothing -> pure []
       Just (original,more)
         | original `Set.member` done -> go done more
         | otherwise ->
@@ -52,8 +55,9 @@ generateMatchers matcherNames originalFuns = go Set.empty
                 panic "generateMatchers"
                   [ "Missing original function:" ++ show (pp original) ]
               Just f ->
-                let (matcherFun,new) = makeMatcher matcherNames f
-                in matcherFun : go (Set.insert original done) (more <> new)
+                do (matcherFun,new) <- makeMatcher matcherNames f
+                   rest <- go (Set.insert original done) (more <> new)
+                   pure (matcherFun : rest)
 
 matcherName :: HasGUID m => Fun Grammar -> m (Maybe (FName, FName))
 matcherName f
@@ -70,28 +74,26 @@ matcherName f
   old = fName f
 
 makeMatcher ::
-  Map FName FName -> Fun Grammar -> (Fun Grammar, Set FName)
+  HasGUID m => Map FName FName -> Fun Grammar -> m (Fun Grammar, Set FName)
 makeMatcher matcherNames f =
   case fDef f of
     External -> impossible
     Def g
-      | fnameType (fName f) == TUnit -> impossible
-      | otherwise ->
-          let r = noSemR matcherNames g
-          in ( f { fName    = matcher
-                 , fDef     = Def (resGrammar r)
-                 , fIsEntry = False
-                   -- This pass runs before may-fail analysis, so the
-                   -- generated function will be annotated later.
-                 , fMayFail = Unknown
-                 }
-             , resMatchers r
-             )
+      | fnameType (fName f) == TUnit -> impossible -- sanity
+      | otherwise -> do
+          r <- noSemR matcherNames g
+          pure
+            ( f { fName    = matcher
+                , fDef     = Def (resGrammar r)
+                , fIsEntry = False
+                  -- This pass runs before may-fail analysis, so the
+                  -- generated function will be annotated later.
+                , fMayFail = Unknown
+                }
+            , resMatchers r
+            )
   where
-  matcher =
-    case Map.lookup (fName f) matcherNames of
-      Just name -> name
-      Nothing -> impossible
+  matcher = fromMaybe impossible (Map.lookup (fName f) matcherNames)
 
   impossible =
     panic "makeMatcher"
@@ -101,150 +103,215 @@ data Result = Result
   { resGrammar  :: Grammar      -- ^ Updated grammar
   , resFreeVars :: Set Name     -- ^ Free value variables in grammar
   , resMatchers :: Set FName    -- ^ Functions for which we need to make matchers
+  , resPure     :: Bool         -- ^ Grammar may be discarded entirely
   }
 
 -- Preserve the value of a grammar, while eliminating unused intermediate values.
-cleanR :: Map FName FName -> Grammar -> Result
+cleanR :: HasGUID m => Map FName FName -> Grammar -> m Result
 cleanR matcherNames gram =
   case gram of
-    Pure {}       -> same
-    GetStream     -> same
-    SetStream {}  -> same
-    Match {}      -> same
-    Fail {}       -> same
+    Pure {}       -> pure pureResult
+    GetStream     -> pure pureResult
+    SetStream {}  -> pure same
+    Match {}      -> pure same
+    Fail {}       -> pure same
 
-    Do_ g1 g2 -> binary Do_ (noSemR matcherNames g1) (cleanR matcherNames g2)
+    Do_ g1 g2 ->
+      binary Do_ <$> noSemR matcherNames g1 <*> cleanR matcherNames g2
 
-    Do x g1 g2 ->
-      let r2 = cleanR matcherNames g2
-          finish r1 mk =
-            Result
-              { resGrammar = mk (resGrammar r1) (resGrammar r2)
-              , resFreeVars = resFreeVars r1 <>
-                              Set.delete x (resFreeVars r2)
-              , resMatchers = resMatchers r1 <> resMatchers r2
-              }
-      in if x `Set.member` resFreeVars r2
-           then finish (cleanR matcherNames g1) (Do x)
-           else finish (noSemR matcherNames g1) Do_
+    Do x g1 g2 -> do
+      r2 <- cleanR matcherNames g2
+      r1 <- if x `Set.member` resFreeVars r2
+              then cleanR matcherNames g1
+              else noSemR matcherNames g1
+      let make = if x `Set.member` resFreeVars r2 then Do x else Do_
+      pure Result
+        { resGrammar = make (resGrammar r1) (resGrammar r2)
+        , resFreeVars = resFreeVars r1 <> Set.delete x (resFreeVars r2)
+        , resMatchers = resMatchers r1 <> resMatchers r2
+        , resPure = resPure r1 && resPure r2
+        }
 
-    Let x e g ->
-      let r = cleanR matcherNames g
-      in if x `Set.member` resFreeVars r
-           then r { resGrammar = Let x e (resGrammar r)
-                  , resFreeVars = freeVars e <>
-                                  Set.delete x (resFreeVars r)
-                  }
-           else r
+    Let x e g -> do
+      r <- cleanR matcherNames g
+      pure $
+        if x `Set.member` resFreeVars r
+          then r { resGrammar = Let x e (resGrammar r)
+                 , resFreeVars = freeVars e <>
+                                 Set.delete x (resFreeVars r)
+                 }
+          else r
 
     OrBiased g1 g2 ->
-      binary OrBiased (cleanR matcherNames g1) (cleanR matcherNames g2)
+      binary OrBiased <$> cleanR matcherNames g1 <*> cleanR matcherNames g2
 
     OrUnbiased g1 g2 ->
-      binary OrUnbiased (cleanR matcherNames g1) (cleanR matcherNames g2)
+      binary OrUnbiased <$> cleanR matcherNames g1 <*> cleanR matcherNames g2
 
-    Call {} -> same
+    Call {} -> pure same
 
-    Annot a g ->
-      let r = cleanR matcherNames g
-      in r { resGrammar = Annot a (resGrammar r) }
+    Annot a g -> do
+      r <- cleanR matcherNames g
+      pure r { resGrammar = gAnnotate [a] (resGrammar r) }
 
-    GCase (Case x as) -> caseResult x [ (p, cleanR matcherNames g) | (p,g) <- as ]
+    GCase (Case x as) -> do
+      as' <- mapM cleanAlt as
+      pure (caseResult x as')
+      where
+      cleanAlt (p,g) = do r <- cleanR matcherNames g
+                          pure (p,r)
 
-    Loop lc -> loopResult Loop (cleanR matcherNames) lc
+    Loop loop -> cleanLoop loop
   where
+  cleanLoop loop = do
+    r <- cleanR matcherNames (loopClassBody loop)
+    let g = Loop (resGrammar r <$ loop)
+    pure Result { resGrammar  = g
+                , resFreeVars = freeVars g
+                , resMatchers = resMatchers r
+                , resPure     = False
+                }
+
   same = Result { resGrammar  = gram
                 , resFreeVars = freeVars gram
                 , resMatchers = mempty
+                , resPure     = False
                 }
+  pureResult = same { resPure = True }
 
 -- Preserve the parsing effects of a grammar, but return unit.
-noSemR :: Map FName FName -> Grammar -> Result
+noSemR :: HasGUID m => Map FName FName -> Grammar -> m Result
 noSemR matcherNames gram =
   case gram of
-    Pure _         -> unitResult
-    GetStream      -> unitResult
+    Pure _         -> pure unitResult
+    GetStream      -> pure unitResult
     SetStream {}   ->
-      Result { resGrammar  = gram
-             , resFreeVars = freeVars gram
-             , resMatchers = mempty
-             }
-    Match _ m      -> result (Match SemNo m)
-    Fail src _ msg -> result (Fail src TUnit msg)
-
-    Do_ g1 g2 -> binary Do_ (noSemR matcherNames g1) (noSemR matcherNames g2)
-
-    Do x g1 g2 ->
-      let r2 = noSemR matcherNames g2
-          finish r1 mk =
-            Result
-              { resGrammar = mk (resGrammar r1) (resGrammar r2)
-              , resFreeVars = resFreeVars r1 <> Set.delete x (resFreeVars r2)
-              , resMatchers = resMatchers r1 <> resMatchers r2
-              }
-      in if x `Set.member` resFreeVars r2
-           then finish (cleanR matcherNames g1) (Do x)
-           else finish (noSemR matcherNames g1) Do_
-
-    Let x e g ->
-      let r = noSemR matcherNames g
-      in if x `Set.member` resFreeVars r
-           then r { resGrammar = Let x e (resGrammar r)
-                  , resFreeVars = freeVars e <> Set.delete x (resFreeVars r)
+      pure Result { resGrammar  = gram
+                  , resFreeVars = freeVars gram
+                  , resMatchers = mempty
+                  , resPure     = False
                   }
-           else r
+    Match _ m      -> pure (result (Match SemNo m))
+    Fail src _ msg -> pure (result (Fail src TUnit msg))
+
+    Do_ g1 g2 ->
+      binary Do_ <$> noSemR matcherNames g1 <*> noSemR matcherNames g2
+
+    Do x g1 g2 -> do
+      r2 <- noSemR matcherNames g2
+      r1 <- if x `Set.member` resFreeVars r2
+              then cleanR matcherNames g1
+              else noSemR matcherNames g1
+      let make = if x `Set.member` resFreeVars r2 then Do x else Do_
+      pure Result
+        { resGrammar = make (resGrammar r1) (resGrammar r2)
+        , resFreeVars = resFreeVars r1 <> Set.delete x (resFreeVars r2)
+        , resMatchers = resMatchers r1 <> resMatchers r2
+        , resPure = resPure r1 && resPure r2
+        }
+
+    Let x e g -> do
+      r <- noSemR matcherNames g
+      pure $
+        if x `Set.member` resFreeVars r
+          then r { resGrammar = Let x e (resGrammar r)
+                 , resFreeVars = freeVars e <> Set.delete x (resFreeVars r)
+                 }
+          else r
 
     OrBiased g1 g2 ->
-      binary OrBiased (noSemR matcherNames g1) (noSemR matcherNames g2)
+      binary OrBiased <$> noSemR matcherNames g1 <*> noSemR matcherNames g2
 
     OrUnbiased g1 g2 ->
-      binary OrUnbiased (noSemR matcherNames g1) (noSemR matcherNames g2)
+      binary OrUnbiased <$> noSemR matcherNames g1 <*> noSemR matcherNames g2
 
     Call f es ->
-      case Map.lookup f matcherNames of
+      pure $ case Map.lookup f matcherNames of
         Just matcher -> (result (Call matcher es)) { resMatchers = Set.singleton f }
         Nothing
           | fnameType f == TUnit -> result (Call f es)
           | otherwise -> result (Do_ (Call f es) (Pure unit))
 
-    Annot a g ->
-      let r = noSemR matcherNames g
-      in r { resGrammar = Annot a (resGrammar r) }
+    Annot a g -> do
+      r <- noSemR matcherNames g
+      pure r { resGrammar = gAnnotate [a] (resGrammar r) }
 
-    GCase (Case x as) -> caseResult x [ (p, noSemR matcherNames g) | (p,g) <- as ]
+    GCase (Case x as) -> do
+      as' <- mapM noSemAlt as
+      pure (caseResult x as')
+      where
+      noSemAlt (p,g) = do r <- noSemR matcherNames g
+                          pure (p,r)
 
-    Loop (ManyLoop _ backtrack lower upper body) ->
-      let r = noSemR matcherNames body
-      in Result
-           { resGrammar = Loop (ManyLoop SemNo backtrack lower upper (resGrammar r))
-           , resFreeVars = freeVars lower <> freeVars upper <> resFreeVars r
-           , resMatchers = resMatchers r
-           }
-
-    -- Repeat and morphism loops use the body's result to drive the next
-    -- iteration.  Preserve that computation and discard only the final value.
-    Loop lc -> loopResult (\lc' -> Do_ (Loop lc') (Pure unit)) (cleanR matcherNames) lc
+    Loop loop -> noSemLoop matcherNames loop
   where
-  unitResult = Result { resGrammar  = Pure unit
-                      , resFreeVars = mempty
-                      , resMatchers = mempty
-                      }
   result g = Result { resGrammar  = g
                     , resFreeVars = freeVars g
                     , resMatchers = mempty
+                    , resPure     = False
                     }
 
-binary ::
-  (Grammar -> Grammar -> Grammar) ->
-  Result ->
-  Result ->
-  Result
+noSemLoop :: HasGUID m => Map FName FName -> LoopClass Grammar -> m Result
+noSemLoop matcherNames loop =
+  case loop of
+    ManyLoop _ backtrack lower upper body -> do
+      r <- noSemR matcherNames body
+      pure Result
+        { resGrammar = Loop (ManyLoop SemNo backtrack lower upper (resGrammar r))
+        , resFreeVars = freeVars lower <> freeVars upper <> resFreeVars r
+        , resMatchers = resMatchers r
+        , resPure = False
+        }
+
+    -- A repeat loop uses the body's result to drive the next iteration.
+    -- Preserve that computation and discard only the final value.
+    RepeatLoop {} -> discardResult <$> cleanR matcherNames (Loop loop)
+
+    -- A map loop's iterations are determined by its input collection, so
+    -- when its result is unused it can become a unit-valued fold.
+    MorphismLoop (MapMorphism col body) -> do
+      r <- noSemR matcherNames body
+      if resPure r then pure unitResult else unitFold col r
+
+    MorphismLoop (FoldMorphism state _ col body) -> do
+      r <- noSemR matcherNames body
+      if resPure r
+        then pure unitResult
+        else if state `Set.member` resFreeVars r
+               then discardResult <$> cleanR matcherNames (Loop loop)
+               else unitFold col r
+  where
+  unitFold col r = do
+    state <- freshNameSys TUnit
+    let g = Loop (MorphismLoop (FoldMorphism state unit col (resGrammar r)))
+    pure Result
+      { resGrammar = g
+      , resFreeVars = freeVars g
+      , resMatchers = resMatchers r
+      , resPure = False
+      }
+
+unitResult :: Result
+unitResult =
+  Result { resGrammar  = Pure unit
+         , resFreeVars = mempty
+         , resMatchers = mempty
+         , resPure     = True
+         }
+
+binary :: (Grammar -> Grammar -> Grammar) -> Result ->  Result ->  Result
 binary make r1 r2 =
   Result
     { resGrammar  = make (resGrammar r1) (resGrammar r2)
     , resFreeVars = resFreeVars r1 <> resFreeVars r2
     , resMatchers = resMatchers r1 <> resMatchers r2
+    , resPure     = resPure r1 && resPure r2
     }
+
+discardResult :: Result -> Result
+discardResult r =
+  r { resGrammar = Do_ (resGrammar r) (Pure unit),
+      resFreeVars = resFreeVars r }
 
 caseResult :: Name -> [(Pattern,Result)] -> Result
 caseResult x as =
@@ -252,43 +319,8 @@ caseResult x as =
     { resGrammar  = GCase (Case x [ (p,resGrammar r) | (p,r) <- as ])
     , resFreeVars = Set.insert x (Set.unions [ resFreeVars r | (_,r) <- as ])
     , resMatchers = Set.unions [ resMatchers r | (_,r) <- as ]
+    , resPure     = all (resPure . snd) as
     }
-
-loopResult ::
-  (LoopClass Grammar -> Grammar) ->
-  (Grammar -> Result) ->
-  LoopClass Grammar ->
-  Result
-loopResult make transform lc =
-  let (lc',used) =
-        case lc of
-          -- Note that this case is not used by `noSemR`
-          ManyLoop sem backtrack lower upper body ->
-            let r = transform body
-            in ( ManyLoop sem backtrack lower upper (resGrammar r)
-               , resMatchers r
-               )
-          RepeatLoop backtrack x e body ->
-            let r = transform body
-            in ( RepeatLoop backtrack x e (resGrammar r), resMatchers r )
-          MorphismLoop lm ->
-            case lm of
-              FoldMorphism x e col body ->
-                let r = transform body
-                in ( MorphismLoop
-                       (FoldMorphism x e col (resGrammar r))
-                   , resMatchers r
-                   )
-              MapMorphism col body ->
-                let r = transform body
-                in ( MorphismLoop (MapMorphism col (resGrammar r))
-                   , resMatchers r
-                   )
-      g = make lc'
-  in Result { resGrammar  = g
-            , resFreeVars = freeVars g
-            , resMatchers = used
-            }
 
 -- Matcher generation changes the call graph, so some of the original
 -- functions retained by specialization may no longer be reachable.
