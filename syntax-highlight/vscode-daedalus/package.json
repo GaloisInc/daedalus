@@ -6,7 +6,7 @@
     "repository": {
         "url": "https://github.com/GaloisInc/daedalus/tree/master/syntax-highlight/vscode-daedalus"
     },
-    "version": "0.0.3",
+    "version": "0.0.4",
     "engines": {
         "vscode": "^1.100.0"
     },
@@ -23,6 +23,14 @@
                     "type": "string",
                     "default": "daedalus-language-server",
                     "description": "Path to the Daedalus language server"
+                },
+                "daedalus.searchPaths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "Directories to search for imported Daedalus modules. Relative paths are resolved from the workspace root."
                 }
             }
         },
@@ -60,11 +68,11 @@
         "vscode-languageclient": "^9.0.1"
     },
     "devDependencies": {
-        "@vscode/vsce": "^3.6.0",
         "@types/node": "20.x",
         "@types/vscode": "^1.100.0",
         "@typescript-eslint/eslint-plugin": "^8.31.1",
         "@typescript-eslint/parser": "^8.31.1",
+        "@vscode/vsce": "^4.1.0",
         "esbuild": "^0.28.1",
         "eslint": "^9.25.1",
         "typescript": "^5.8.3"

@@ -12,7 +12,10 @@ export async function activate(_context: vscode.ExtensionContext) {
 	const srvCfg = { command: serverExe, transport: vsc.TransportKind.stdio }
 	const srvOpt: vsc.ServerOptions = { run: srvCfg, debug: srvCfg }
 	const cltOpt: vsc.LanguageClientOptions = {
-		documentSelector: [{ scheme: 'file', language: 'daedalus' }]
+		documentSelector: [{ scheme: 'file', language: 'daedalus' }],
+		synchronize: {
+			configurationSection: 'daedalus'
+		}
 	}
 
 	client = new vsc.LanguageClient("daedalus", "Daedalus Language Server", srvOpt, cltOpt)

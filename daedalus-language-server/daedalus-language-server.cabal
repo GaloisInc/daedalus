@@ -47,6 +47,7 @@ library
                        mtl,
                        async,
                        filepath,
+                       directory,
                        data-default,
                        unliftio-core
  

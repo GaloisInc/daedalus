@@ -38,7 +38,8 @@ import           System.Log.Logger
 import           Daedalus.LSP.Command
 import           Daedalus.LSP.LanguageFeatures
 import           Daedalus.LSP.Monad
-import           Daedalus.LSP.Worker           (requestParse, worker)
+import           Daedalus.LSP.Worker           (requestParse,
+                                                requestParseCurrent, worker)
 
 
 -- SI for server impl.
@@ -53,15 +54,19 @@ run = flip E.catches handlers $ do
 
   let
     serverDefinition = ServerDefinition
-      { defaultConfig = Config ()
+      { defaultConfig = Config []
       , configSection = "daedalus"
       , onConfigChange = \_cfg -> pure ()
       , parseConfig = \_old v -> do
           case fromJSON v of
             Error e -> Left (Text.pack e)
             Success cfg -> Right cfg
-      , doInitialize = \env _ -> do
-          sst <- emptyServerState env
+      , doInitialize = \env params -> do
+          let roots =
+                case params ^. J.params . J.rootUri of
+                  J.InL uri -> maybe [] pure (J.uriToFilePath uri)
+                  J.InR _   -> []
+          sst <- emptyServerState env roots
           void $ forkIO (reactor rin)
           void $ forkIO (worker sst)
           pure (Right sst)
@@ -153,6 +158,8 @@ handle = mconcat
   , notificationHandler J.SMethod_WorkspaceDidChangeConfiguration $ \msg -> do
       cfg <- getConfig
       liftIO $ debugM "configuration changed: " (show (msg,cfg))
+      sst <- ask
+      liftIO $ atomically $ writeTChan (workerChan sst) ReconfigureReq
 
   , notificationHandler J.SMethod_TextDocumentDidChange $ \msg -> do
     let doc  = msg ^. J.params
@@ -161,15 +168,27 @@ handle = mconcat
     let uri = doc ^. J.uri . to J.toNormalizedUri
     liftIO $ debugM "reactor.handle" $ "Processing DidChangeTextDocument for: " ++ show uri
 
-    sst <- ask
+    pure ()
 
-    liftIO $ requestParse sst uri (doc ^. J.version) debounceTime
+  , notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
+      let uri = msg ^. J.params
+                    . J.textDocument
+                    . J.uri
+                    . to J.toNormalizedUri
+      sst <- ask
+      liftIO $ debugM "reactor.handle" $ "Processing didSave for: " ++ show uri
+      liftIO $ requestParseCurrent sst uri debounceTime
 
-  , notificationHandler J.SMethod_TextDocumentDidSave $ \_msg ->
-      pure ()
-
-  , notificationHandler J.SMethod_TextDocumentDidClose $ \_msg ->
-      pure ()
+  , notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> do
+      let uri = msg ^. J.params
+                    . J.textDocument
+                    . J.uri
+                    . to J.toNormalizedUri
+      sst <- ask
+      liftIO $ debugM "reactor.handle" $ "Processing didClose for: " ++ show uri
+      liftIO $ atomically $ writeTChan (workerChan sst) (ClosedReq uri)
+      let maxNDiags = 100
+      void $ publishDiagnostics maxNDiags uri Nothing mempty
 
   , requestHandler J.SMethod_TextDocumentDefinition $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"

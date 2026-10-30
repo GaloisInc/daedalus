@@ -8,7 +8,7 @@
 -- | This module contains the worker thread, i.e., the thread which
 -- does all the parsing and type checking.
 {-# LANGUAGE DeriveFunctor #-}
-module Daedalus.LSP.Worker (requestParse, worker) where
+module Daedalus.LSP.Worker (requestParse, requestParseCurrent, worker) where
 
 import           Control.Concurrent            (threadDelay)
 import           Control.Concurrent.Async      (Async, async, cancel)
@@ -29,9 +29,11 @@ import qualified Data.Text                     as Text
 import qualified Data.Text.IO                  as Text
 import           System.FilePath
 import           System.Log.Logger             (debugM)
+import           System.Directory              (doesFileExist, makeAbsolute)
 
 import           Daedalus.AST                  (Import (..), Module (..))
-import           Daedalus.Module               (pathToModuleName)
+import           Daedalus.Module               (pathToModuleName,
+                                                resolveModulePath)
 import           Daedalus.Panic
 import           Daedalus.Parser               (parseFromTokens)
 import           Daedalus.Parser.Lexer         (Lexeme, Token, lexer)
@@ -53,7 +55,8 @@ import           Language.LSP.Diagnostics      (partitionBySource)
 import           Language.LSP.Protocol.Types   (Diagnostic (..))
 import qualified Language.LSP.Protocol.Types   as J
 import           Language.LSP.Server           (getVirtualFile,
-                                                publishDiagnostics, runLspT)
+                                                getConfig, publishDiagnostics,
+                                                runLspT)
 import           Language.LSP.VFS              (virtualFileText,
                                                 virtualFileVersion)
 
@@ -85,6 +88,16 @@ requestParse sst uri version delay = do
   traverse_ sendReq m_txt
   where
     sendReq txt = atomically $
+      writeTChan (workerChan sst) (ChangedReq uri version delay txt)
+
+requestParseCurrent :: ServerState -> J.NormalizedUri -> Int -> IO ()
+requestParseCurrent sst uri delay = do
+  m_doc <- runLspT (lspEnv sst) $ do
+    mdoc <- getVirtualFile uri
+    pure $ (\vf -> (virtualFileVersion vf, virtualFileText vf)) <$> mdoc
+  traverse_ sendReq m_doc
+  where
+    sendReq (version, txt) = atomically $
       writeTChan (workerChan sst) (ChangedReq uri version delay txt)
 
 -- The workflow is this:
@@ -128,6 +141,13 @@ resetModulePassStatus =
   . over msParsedModule resetPassStatus
   . over msScopeRes resetPassStatus
   . over msTCRes resetPassStatus
+
+markModuleChanged :: ModuleState -> ModuleState
+markModuleChanged =
+  over msTokens (set statusChanged True)
+  . over msParsedModule (set statusChanged True)
+  . over msScopeRes (set statusChanged True)
+  . over msTCRes (set statusChanged True)
 
 -- -----------------------------------------------------------------------------
 -- Worker monad
@@ -254,7 +274,7 @@ moduleSourceToDir (ClientModule uri _) =
   case J.uriToFilePath (J.fromNormalizedUri uri) of
     Just fsrc -> fst (pathToModuleName fsrc)
     Nothing -> panic "Couldn't get filename" []
-moduleSourceToDir (FileModule dir) = dir
+moduleSourceToDir (FileModule file) = takeDirectory file
 
 -- ----------------------------------------------------------------------------------------
 -- Lexing
@@ -269,16 +289,33 @@ addModule filename ms txt = do
       Just (ModuleState ms toksSt
                         emptyPassStatus emptyPassStatus emptyPassStatus)
 
--- | @addModuleFromFile rootDir mn@ will try to read a module from file at
--- @rootDir/mn.ddl@ and add it to the `WorkerM` state. A `Left` result means the
--- file couldn't be read, and no changes were made to the state.
-addModuleFromFile :: FilePath -> ModuleName -> WorkerM (Either IOException ())
-addModuleFromFile rootDir mn = do
-  let filename = rootDir </> Text.unpack mn <.> "ddl"
-  txtE <- liftIO $ try $ Text.readFile filename
-  case txtE of
+-- | Try to resolve and read an imported module using the configured search
+-- paths. A 'Left' result means the file could not be read, and no changes were
+-- made to the worker state.
+addModuleFromFile :: ServerState -> ModuleSource -> ModuleName ->
+                     WorkerM (Either IOException ())
+addModuleFromFile sst importer mn = do
+  Config paths <- liftIO $ runLspT (lspEnv sst) getConfig
+  let importerDir = moduleSourceToDir importer
+      roots = case workspaceRoots sst of
+                [] -> [importerDir]
+                rs -> rs
+      resolvePath path
+        | isAbsolute path = [path]
+        | otherwise       = map (</> path) roots
+      modulePaths = importerDir : concatMap resolvePath paths
+  fileE <- liftIO $ try $ do
+    mFilename <- resolveModulePath modulePaths mn
+    traverse (\filename -> do
+                absoluteFilename <- makeAbsolute filename
+                txt <- Text.readFile absoluteFilename
+                pure (absoluteFilename, txt))
+             mFilename
+  case fileE of
     Left e -> pure (Left e)
-    Right txt -> Right <$> addModule filename (FileModule rootDir) txt
+    Right Nothing -> pure (Right ())
+    Right (Just (filename, txt)) ->
+      Right <$> addModule filename (FileModule filename) txt
 
 addModuleFromRequest :: J.NormalizedUri -> J.Int32 -> Text -> WorkerM ()
 addModuleFromRequest uri version txt = do
@@ -294,8 +331,9 @@ addModuleFromRequest uri version txt = do
 -- | Ensure all modules are parsed (or parsing has been attempted) and
 -- all imports have been loaded.  Note that after this, a missing
 -- import means that the file itself was missing.
-parseAll :: WorkerM ()
-parseAll = do
+
+parseAll :: ServerState -> WorkerM ()
+parseAll sst = do
   allMods <- use (wsModules . to Map.keysSet)
   go allMods
   where
@@ -313,13 +351,12 @@ parseAll = do
                   (const []) parseModule mn
       (_, e_m) <- statusAt msParsedModule mn
       let allImps = either (const mempty) (map importModule . moduleImports) e_m
-          rootDir = moduleSourceToDir ms
       newImps <- filterM (\mn' -> use (wsModules . to (Map.notMember mn'))) allImps
       -- Tokenize the new modules and add to state. We can safely ignore `Left`
       -- results from `addModuleFromFile` - if we fail to populate the worker
       -- state with information about a module we tried to import, it will just
       -- be (correctly) reported as missing in subsequent interactions.
-      traverse_ (addModuleFromFile rootDir) newImps
+      traverse_ (addModuleFromFile sst ms) newImps
       go (Set.union wl' (Set.fromList newImps))
 
 -- Parse the module and ensure that any deps. are at least in the process of being loaded.
@@ -333,7 +370,7 @@ parseModule mn ms toks _ignored =
                case J.uriToFilePath (J.fromNormalizedUri uri) of
                  Just fp -> fp
                  Nothing -> panic "Couldn't get filename" []
-             FileModule dir -> dir </> Text.unpack mn <.> "ddl"
+             FileModule file -> file
 
 -- -----------------------------------------------------------------------------
 -- Cycles + Scope
@@ -483,6 +520,24 @@ worker sst = void $ runWorkerM go (initWorkerState (passState sst))
           addModuleFromRequest uri ver txt
           publishModules
           startTimer sst delay
+
+        ClosedReq uri -> do
+          let mFilename = J.uriToFilePath (J.fromNormalizedUri uri)
+              mModuleName = snd . pathToModuleName <$> mFilename
+          cancelTimer
+          case (mFilename, mModuleName) of
+            (Just filename, Just mn) -> do
+              exists <- liftIO $ doesFileExist filename
+              if exists
+                then do
+                  txt <- liftIO $ Text.readFile filename
+                  addModule filename (FileModule filename) txt
+                else wsModules . at mn .= Nothing
+            _ -> pure ()
+          modifying wsModules (fmap markModuleChanged)
+          runPasses
+          publishModules
+          publishDiags sst
           
         WakeUpReq -> do
           cancelTimer
@@ -492,8 +547,17 @@ worker sst = void $ runWorkerM go (initWorkerState (passState sst))
           -- reset the changed status of all pass state.
           modifying wsModules (fmap resetModulePassStatus)
 
+        ReconfigureReq -> do
+          cancelTimer
+          modifying wsModules
+            (fmap markModuleChanged . Map.filter (not . isFileModule . view msSource))
+          runPasses
+          publishModules
+          publishDiags sst
+          modifying wsModules (fmap resetModulePassStatus)
+
     runPasses = do
-      parseAll
+      parseAll sst
       mns <- scopeAll
       tcAll mns
     
