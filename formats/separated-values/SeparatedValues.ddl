@@ -25,11 +25,11 @@ import Daedalus
 
 -- Common instantiations
 
-def CSV_header = { let ?$sep = ','; let ?includeHeader = true; SV; }
-def CSV_no_header = { let ?$sep = ','; let ?includeHeader = false; SV; }
+def CSV_header = { let ?sep = ','; let ?includeHeader = true; SV; }
+def CSV_no_header = { let ?sep = ','; let ?includeHeader = false; SV; }
 
-def TSV_header = { let ?$sep = '\t'; let ?includeHeader = true; SV; }
-def TSV_no_header = { let ?$sep = '\t'; let ?includeHeader = false; SV; }
+def TSV_header = { let ?sep = '\t'; let ?includeHeader = true; SV; }
+def TSV_no_header = { let ?sep = '\t'; let ?includeHeader = false; SV; }
 
 -- Separated values
 
@@ -48,7 +48,7 @@ def BOM = @Match "\xEF\xBB\xBF"
 
 -- Headers
 
-def Header = OneOrMoreSepBy Name ?$sep
+def Header = OneOrMoreSepBy Name $[?sep]
 
 def Name = Field
 
@@ -62,14 +62,14 @@ def Records =
        just last -> emit init last
        nothing -> init
 
-def Record = OneOrMoreSepBy Field ?$sep
+def Record = OneOrMoreSepBy Field $[?sep]
 
 def Field = Escaped <| NonEscaped
 
 def Escaped =
   block
     $dquote
-    $$ = Many ($textdata <| ?$sep <| $cr <| $lf <| { $dquote; $dquote })
+    $$ = Many ($textdata <| $[?sep] <| $cr <| $lf <| { $dquote; $dquote })
     $dquote
 
 def NonEscaped = Many $textdata
@@ -84,7 +84,7 @@ def CRLF      = { $cr; $lf }
 def Newline   = CRLF <| $cr <| $lf
 
 -- All printable characters except the separator and double-quote
-def $textdata = (' ' | '!' | '#' .. '~') - ?$sep
+def $textdata = (' ' | '!' | '#' .. '~') - ?sep
 
 -- Helpers
 
