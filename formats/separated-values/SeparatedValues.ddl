@@ -22,6 +22,7 @@
 -}
 
 import Daedalus
+import utf8
 
 -- Common instantiations
 
@@ -69,10 +70,10 @@ def Field = Escaped <| NonEscaped
 def Escaped =
   block
     $dquote
-    $$ = Many ($textdata <| $[?sep] <| $cr <| $lf <| { $dquote; $dquote })
+    $$ = build (many (s = builder) (Textdata s <| emit s $[?sep] <| emit s $cr <| emit s $lf <| { emit s $dquote; emit s $dquote }))
     $dquote
 
-def NonEscaped = Many $textdata
+def NonEscaped = build (many (s = builder) Textdata s)
 
 -- Characters / character classes
 
@@ -84,7 +85,14 @@ def CRLF      = { $cr; $lf }
 def Newline   = CRLF <| $cr <| $lf
 
 -- All printable characters except the separator and double-quote
-def $textdata = (' ' | '!' | '#' .. '~') - ?sep
+def Textdata s =
+  block
+    let c = UTF8
+    if (c < 32)                    {- ASCII control -}
+       || (c == 34)                {- " -}
+       || (c == (?sep as uint 32)) {- separator -}
+      then Fail "Character is not valid in an non-escaped field"
+      else EmitUTF8 s c
 
 -- Helpers
 
