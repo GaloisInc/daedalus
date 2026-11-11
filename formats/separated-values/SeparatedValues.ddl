@@ -23,6 +23,16 @@
 
 import Daedalus
 
+-- Common instantiations
+
+def CSV_header = { let ?$sep = ','; let ?includeHeader = true; SV; }
+def CSV_no_header = { let ?$sep = ','; let ?includeHeader = false; SV; }
+
+def TSV_header = { let ?$sep = '\t'; let ?includeHeader = true; SV; }
+def TSV_no_header = { let ?$sep = '\t'; let ?includeHeader = false; SV; }
+
+-- Separated values
+
 def SV =
   block
     Optional BOM
