@@ -1,0 +1,258 @@
+--- Found 1 results:
+{ meta: [ { key: "fileformat"
+          , val: {unstructured: "VCFv4.2"}
+          }
+        , { key: "fileDate"
+          , val: {unstructured: "20090805"}
+          }
+        , { key: "source"
+          , val: {unstructured: "myImputationProgramV3.1"}
+          }
+        , { key: "reference"
+          , val: {unstructured: "file:///seq/references/1000GenomesPilot-NCBI36.fasta"}
+          }
+        , { key: "contig"
+          , val: {structured: [ { key: "ID"
+                                , val: "20"
+                                }
+                              , { key: "length"
+                                , val: "62435964"
+                                }
+                              , { key: "assembly"
+                                , val: "B36"
+                                }
+                              , { key: "md5"
+                                , val: "f126cdf8a6e0c7f379d618ff66beb2da"
+                                }
+                              , { key: "species"
+                                , val: "Homo sapiens"
+                                }
+                              , { key: "taxonomy"
+                                , val: "x"
+                                }
+                              ]}
+          }
+        , { key: "phasing"
+          , val: {unstructured: "partial"}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "NS"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Number of Samples With Data"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "DP"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Total Depth"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "AF"
+                                }
+                              , { key: "Number"
+                                , val: "A"
+                                }
+                              , { key: "Type"
+                                , val: "Float"
+                                }
+                              , { key: "Description"
+                                , val: "Allele Frequency"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "AA"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "String"
+                                }
+                              , { key: "Description"
+                                , val: "Ancestral Allele"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "DB"
+                                }
+                              , { key: "Number"
+                                , val: "0"
+                                }
+                              , { key: "Type"
+                                , val: "Flag"
+                                }
+                              , { key: "Description"
+                                , val: "dbSNP membership, build 129"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "H2"
+                                }
+                              , { key: "Number"
+                                , val: "0"
+                                }
+                              , { key: "Type"
+                                , val: "Flag"
+                                }
+                              , { key: "Description"
+                                , val: "HapMap2 membership"
+                                }
+                              ]}
+          }
+        , { key: "FILTER"
+          , val: {structured: [ { key: "ID"
+                                , val: "q10"
+                                }
+                              , { key: "Description"
+                                , val: "Quality below 10"
+                                }
+                              ]}
+          }
+        , { key: "FILTER"
+          , val: {structured: [ { key: "ID"
+                                , val: "s50"
+                                }
+                              , { key: "Description"
+                                , val: "Less than 50% of samples have data"
+                                }
+                              ]}
+          }
+        , { key: "FORMAT"
+          , val: {structured: [ { key: "ID"
+                                , val: "GT"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "String"
+                                }
+                              , { key: "Description"
+                                , val: "Genotype"
+                                }
+                              ]}
+          }
+        , { key: "FORMAT"
+          , val: {structured: [ { key: "ID"
+                                , val: "GQ"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Genotype Quality"
+                                }
+                              ]}
+          }
+        , { key: "FORMAT"
+          , val: {structured: [ { key: "ID"
+                                , val: "DP"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Read Depth"
+                                }
+                              ]}
+          }
+        , { key: "FORMAT"
+          , val: {structured: [ { key: "ID"
+                                , val: "HQ"
+                                }
+                              , { key: "Number"
+                                , val: "2"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Haplotype Quality"
+                                }
+                              ]}
+          }
+        ]
+, hdr: { samples: [ "NA00001"
+                  , "NA00002"
+                  , "NA00003"
+                  ]
+       }
+, data: [ { chrom: "20"
+          , pos: 14370[64]
+          , id: Just [ "rs6054257"
+                     ]
+          , ref: "G"
+          , alt: Just [ "A"
+                      ]
+          , qual: Just 29[64]
+          , filter: Just [ ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "3"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "14"
+                                 ]
+                         }
+                       , { key: "AF"
+                         , vals: [ "0.5"
+                                 ]
+                         }
+                       , { key: "DB"
+                         , vals: [ ]
+                         }
+                       , { key: "H2"
+                         , vals: [ ]
+                         }
+                       ]
+          , samples: [ [ Just "0|0"
+                       , Just "48"
+                       , Just "1"
+                       , Just "51,51"
+                       ]
+                     , [ Just "1|0"
+                       , Just "48"
+                       , Just "8"
+                       , Just "51,51"
+                       ]
+                     , [ Just "1/1"
+                       , Just "43"
+                       , Just "5"
+                       , Nothing
+                       ]
+                     ]
+          }
+        ]
+}
