@@ -209,10 +209,70 @@ def Format: [[uint 8]] =
     tys
 
 
-def Sample: [maybe [uint 8]] =
-  -- TODO: explicitly parse GT to recognize "./."
+def GT: [maybe (uint 64)] =
+  SepBy1 $['/' | '|'] (D Number)
+
+
+-- We'd rather write `D (D Number, D Number)`, but `D P` checks for a dot before
+-- trying `P`, and so would misparse ".,."
+def HQ: maybe (maybe (uint 64), maybe (uint 64)) =
+  First
+    block
+      let fst = D Number
+      $[',']
+      let snd = D Number
+      just (fst, snd)
+
+    block
+      $['.']
+      nothing
+
+
+-- All variants of this type should be partial, i.e. of type `maybe T`, to
+-- satisfy 1.4.2's declaration that "[i]f any of the fields is missing, it is
+-- replaced with the missing value." There is an exception for (at least) GT,
+-- which has its own semantics for missing values.
+def SampleT =
+  union
+    gt: [maybe (uint 64)]
+    dp: maybe (uint 64)
+    hq: maybe (maybe (uint 64), maybe (uint 64))
+    -- There are more types specified in 1.4.2, and files can define their own
+    -- types in metadata, so this could be elaborated if need be
+    unknown: maybe [uint 8]
+
+def Sample (format: [[uint 8]]): [SampleT] =
   block
-    SepBy1 $[':'] (D (Many $[ $printable - ':' ]))
+    ((Index format 0) == "GT") is true
+    let b = emit (builder: builder SampleT) {| gt = GT |}
+    let s_present =
+      many (st = { idx = 1, res = b })
+        block
+          $[':']
+          let ty = Index format st.idx
+          let item =
+            case ty of
+              "GT" -> {| gt = GT |}
+              "DP" -> {| dp = D Number |}
+              "HQ" -> {| hq = HQ |}
+              _    -> {| unknown = D (Many1 $[ $printable - ':' ]) |}
+          { idx = st.idx + 1, res = emit st.res item }
+
+    -- Per 1.4.2, trailing fields can be dropped, so we add missing fields as
+    -- needed that match the remaining types in the provided `format`
+    let s_all =
+      many (st = s_present)
+        block
+          let ty = Index format st.idx
+          let item =
+            case ty of
+              "GT" -> {| gt = [nothing] |} -- GT has its own semantics for missing values
+              "DP" -> {| dp = nothing |}
+              "HQ" -> {| hq = nothing |}
+              _    -> {| unknown = nothing |}
+          { idx = st.idx + 1, res = emit st.res item }
+
+    build s_all.res
 
 
 -- 1.4.2: [The FORMAT field] is followed by one field per sample, with the
@@ -229,7 +289,7 @@ def Samples (sample_names: [[uint 8]]) =
           for (samples = builder; sample_name in sample_names)
             block
               $tab
-              let s = Sample
+              let s = Sample format
               emit samples s
         build b
 
@@ -445,12 +505,31 @@ def Test =
     TestFails Format
       "."
 
-    TestParses Sample
+    TestParses (Sample ["GT", "AD", "DP", "AF"])
       "0/1:318,294:612:0.480"
-      [just "0/1", just "318,294", just "612", just "0.480"]
-    TestParses Sample
+      [ {| gt = [just 0, just 1] |},
+        {| unknown = just "318,294" |},
+        {| dp = just 612 |},
+        {| unknown = just "0.480" |}
+      ]
+    TestParses (Sample ["GT", "AD", "DP", "AF"])
       "0/1:318,294:612:."
-      [just "0/1", just "318,294", just "612", nothing]
-    -- TODO
-    TestFails Sample
+      [ {| gt = [just 0, just 1] |},
+        {| unknown = just "318,294" |},
+        {| dp = just 612 |},
+        {| unknown = nothing |}
+      ]
+    TestParses (Sample ["GT", "AD", "DP", "AF"])
       "./.:318,294:612:0.480"
+      [ {| gt = [nothing, nothing] |},
+        {| unknown = just "318,294" |},
+        {| dp = just 612 |},
+        {| unknown = just "0.480" |}
+      ]
+    TestParses (Sample ["GT", "AD", "DP", "AF"])
+      "./.:318,294:612"
+      [ {| gt = [nothing, nothing] |},
+        {| unknown = just "318,294" |},
+        {| dp = just 612 |},
+        {| unknown = nothing |}
+      ]

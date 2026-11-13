@@ -237,20 +237,211 @@
                          , vals: [ ]
                          }
                        ]
-          , samples: [ [ Just "0|0"
-                       , Just "48"
-                       , Just "1"
-                       , Just "51,51"
+          , samples: [ [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "48"}
+                       , {dp: Just 1[64]}
+                       , {hq: Just (Just 51[64], Just 51[64])}
                        ]
-                     , [ Just "1|0"
-                       , Just "48"
-                       , Just "8"
-                       , Just "51,51"
+                     , [ {gt: [ Just 1[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "48"}
+                       , {dp: Just 8[64]}
+                       , {hq: Just (Just 51[64], Just 51[64])}
                        ]
-                     , [ Just "1/1"
-                       , Just "43"
-                       , Just "5"
-                       , Nothing
+                     , [ {gt: [ Just 1[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "43"}
+                       , {dp: Just 5[64]}
+                       , {hq: Just (Nothing, Nothing)}
+                       ]
+                     ]
+          }
+        , { chrom: "20"
+          , pos: 17330[64]
+          , id: Nothing
+          , ref: "T"
+          , alt: Just [ "A"
+                      ]
+          , qual: Just 3[64]
+          , filter: Just [ "q10"
+                         ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "3"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "11"
+                                 ]
+                         }
+                       , { key: "AF"
+                         , vals: [ "0.017"
+                                 ]
+                         }
+                       ]
+          , samples: [ [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "49"}
+                       , {dp: Just 3[64]}
+                       , {hq: Just (Just 58[64], Just 50[64])}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "3"}
+                       , {dp: Just 5[64]}
+                       , {hq: Just (Just 65[64], Just 3[64])}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "41"}
+                       , {dp: Just 3[64]}
+                       , {hq: Nothing}
+                       ]
+                     ]
+          }
+        , { chrom: "20"
+          , pos: 1110696[64]
+          , id: Just [ "rs6040355"
+                     ]
+          , ref: "A"
+          , alt: Just [ "G"
+                      , "T"
+                      ]
+          , qual: Just 67[64]
+          , filter: Just [ ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "2"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "10"
+                                 ]
+                         }
+                       , { key: "AF"
+                         , vals: [ "0.333"
+                                 , "0.667"
+                                 ]
+                         }
+                       , { key: "AA"
+                         , vals: [ "T"
+                                 ]
+                         }
+                       , { key: "DB"
+                         , vals: [ ]
+                         }
+                       ]
+          , samples: [ [ {gt: [ Just 1[64]
+                              , Just 2[64]
+                              ]}
+                       , {unknown: Just "21"}
+                       , {dp: Just 6[64]}
+                       , {hq: Just (Just 23[64], Just 27[64])}
+                       ]
+                     , [ {gt: [ Just 2[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "2"}
+                       , {dp: Just 0[64]}
+                       , {hq: Just (Just 18[64], Just 2[64])}
+                       ]
+                     , [ {gt: [ Just 2[64]
+                              , Just 2[64]
+                              ]}
+                       , {unknown: Just "35"}
+                       , {dp: Just 4[64]}
+                       , {hq: Nothing}
+                       ]
+                     ]
+          }
+        , { chrom: "20"
+          , pos: 1230237[64]
+          , id: Nothing
+          , ref: "T"
+          , alt: Nothing
+          , qual: Just 47[64]
+          , filter: Just [ ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "3"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "13"
+                                 ]
+                         }
+                       , { key: "AA"
+                         , vals: [ "T"
+                                 ]
+                         }
+                       ]
+          , samples: [ [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "54"}
+                       , {dp: Just 7[64]}
+                       , {hq: Just (Just 56[64], Just 60[64])}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "48"}
+                       , {dp: Just 4[64]}
+                       , {hq: Just (Just 51[64], Just 51[64])}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "61"}
+                       , {dp: Just 2[64]}
+                       , {hq: Nothing}
+                       ]
+                     ]
+          }
+        , { chrom: "20"
+          , pos: 1234567[64]
+          , id: Just [ "microsat1"
+                     ]
+          , ref: "GTC"
+          , alt: Just [ "G"
+                      , "GTCT"
+                      ]
+          , qual: Just 50[64]
+          , filter: Just [ ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "3"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "9"
+                                 ]
+                         }
+                       , { key: "AA"
+                         , vals: [ "G"
+                                 ]
+                         }
+                       ]
+          , samples: [ [ {gt: [ Just 0[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "35"}
+                       , {dp: Just 4[64]}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 2[64]
+                              ]}
+                       , {unknown: Just "17"}
+                       , {dp: Just 2[64]}
+                       ]
+                     , [ {gt: [ Just 1[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "40"}
+                       , {dp: Just 3[64]}
                        ]
                      ]
           }
