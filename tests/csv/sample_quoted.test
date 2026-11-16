@@ -1,3 +1,4 @@
 run
-../../formats/separated-values/csv.ddl
+../../formats/separated-values/SeparatedValues.ddl
+--entry=CSV_header
 --input=inputs/sample_quoted.csv

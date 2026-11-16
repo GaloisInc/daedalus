@@ -1,0 +1,3 @@
+run
+UTF8_roundtrip.ddl
+--input=inputs/three_byte.txt

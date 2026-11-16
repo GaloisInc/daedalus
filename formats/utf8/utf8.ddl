@@ -33,7 +33,7 @@ def EmitUTF8 b (x : uint 32) =
 
         block
           let b1  = UTF8_emitLead   b {| U3 = { value = x >> 12 as? ?l3 } |}
-          let b2  = UTF8_emitFollow b1 1 x
+          let b2  = UTF8_emitFollow b1 6 x
           UTF8_emitFollow b2 0 x
 
         block
