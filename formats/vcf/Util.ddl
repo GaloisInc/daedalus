@@ -1,13 +1,10 @@
 import Daedalus
 
-def append (x: [?a]) (y: [?a]): [?a] = concat [x, y]
-def cons (x: ?a) (xs: [?a]): [?a] = append [x] xs
-
 def $cr = '\r'
 def $lf = '\n'
 def $tab = '\t'
 def $dq = 34  -- double-quote, defined like so due to #510
-def $bs = 92  -- backslash
+def $bs = '\\'
 
 def $printable = ' ' .. '~'
 def $alnum = ('a' .. 'z') | ('A' .. 'Z') | ('0' .. '9')
@@ -24,25 +21,17 @@ def Number: uint 64 =
 
 -- Parse zero or more occurrences of `P`, separated by `Sep`
 def SepBy (Sep: ?a) (P: ?b): [?b] =
-  First
-    SepBy1 Sep P
-    []
+  SepBy1 Sep P <| []
 
 
 -- Parse one or more occurrences of `P`, separated by `Sep`
 def SepBy1 (Sep: ?a) (P: ?b): [?b] =
-  block
-    let first = P
-    let rest = Many { Sep; $$ = P }
-    cons first rest
+  ManyStart P { Sep; P }
 
 
 -- Parse one or more occurrences of `P`
 def Many1 (P: ?a): [?a] =
-  block
-    let first = P
-    let rest = Many P
-    cons first rest
+  Many (1 ..) P
 
 
 -- Currently unused, but we could parse this specially if we need to refer to
@@ -69,7 +58,7 @@ def QuotedString: [uint 8] =
               let c = $printable
               case c of
                 34 {- double-quote, see #510 -} -> { str = s.str, end = true }
-                92 -> { str = Escape s.str, end = false }
+                '\\' -> { str = Escape s.str, end = false }
                 _  -> { str = emit s.str c, end = false }
     if buf.end
       then build buf.str
