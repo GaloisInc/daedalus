@@ -14,12 +14,12 @@ def $alnum = ('a' .. 'z') | ('A' .. 'Z') | ('0' .. '9')
 def $digit = '0' .. '9'
 
 
--- Parse an integer in base 10
+-- Parse an integer in base 10, failing if the number doesn't fit in 64 bits
 def Number: uint 64 =
   block
-    let d = ($digit - '0') as uint 64
+    let d = ($digit - '0') as? uint 64
     many (s = d)
-      10 * s + (($digit - '0') as uint 64)
+      10 * s + (($digit - '0') as? uint 64)
 
 
 -- Parse zero or more occurrences of `P`, separated by `Sep`
