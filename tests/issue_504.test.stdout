@@ -1,0 +1,30 @@
+Types
+================================================================================
+ 
+def Ints =
+  union
+    u8: uint 8
+ 
+def Main1 =
+  struct
+    b: builder Ints
+ 
+def Inner =
+  struct
+    x: uint 8
+ 
+def MainUnion1 =
+  union
+    A: Inner
+ 
+ 
+ 
+Parsers and Semantic Values
+================================================================================
+ 
+def Main:
+  defines: parser of [ Ints ]
+   
+def MainUnion:
+  defines: parser of Inner
+   

@@ -38,6 +38,16 @@ cNew `isImpliedBy` cOld =
         do unify (cNew, t1) (cOld,t2)
            pure True
 
+    (HasStruct x1 l t1, StructCon _ x2 fs)
+      | x1 == x2, Just t2 <- lookup l fs ->
+        do unify (cNew, t1) (t2, thingValue t2)
+           pure True
+
+    (StructCon _ x1 fs, HasStruct x2 l t2)
+      | x1 == x2, Just t1 <- lookup l fs ->
+        do unify (t1, thingValue t1) (cOld, t2)
+           pure False
+
     (HasTuple x1 i1 t1, HasTuple x2 i2 t2)
       | x1 == x2 && i1 == i2 ->
         do unify (cNew, t1) (cOld,t2)
@@ -47,6 +57,16 @@ cNew `isImpliedBy` cOld =
       | x1 == x2 && l1 == l2 ->
         do unify (range cNew, t1) (cOld,t2)
            pure True
+
+    (HasUnion x1 l1 t1, UnionCon _ x2 l2 t2)
+      | x1 == x2 && l1 == l2 ->
+        do unify (cNew, t1) (t2, thingValue t2)
+           pure True
+
+    (UnionCon _ x1 l1 t1, HasUnion x2 l2 t2)
+      | x1 == x2 && l1 == l2 ->
+        do unify (t1, thingValue t1) (cOld, t2)
+           pure False
 
     (Coerce l1 t1 t2, Coerce l2 s1 s2) ->
       pure (l1 == l2 && t1 == s1 && t2 == s2)
