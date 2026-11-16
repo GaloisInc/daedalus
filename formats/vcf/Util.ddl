@@ -72,6 +72,7 @@ def Escape (s: builder (uint 8)): builder (uint 8) =
     'n'  -> emit s '\n'
     'r'  -> emit s '\r'
     't'  -> emit s '\t'
+    _    -> Fail "Invalid escapee"
 
 
 def Bracketed $c: [uint 8] =
