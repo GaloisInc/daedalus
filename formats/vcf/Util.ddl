@@ -6,7 +6,7 @@ def cons (x: ?a) (xs: [?a]): [?a] = append [x] xs
 def $cr = '\r'
 def $lf = '\n'
 def $tab = '\t'
-def $dq = 34  -- double-quote
+def $dq = 34  -- double-quote, defined like so due to #510
 def $bs = 92  -- backslash
 
 def $printable = ' ' .. '~'
@@ -68,7 +68,7 @@ def QuotedString: [uint 8] =
             block
               let c = $printable
               case c of
-                34 -> { str = s.str, end = true }
+                34 {- double-quote, see #510 -} -> { str = s.str, end = true }
                 92 -> { str = Escape s.str, end = false }
                 _  -> { str = emit s.str c, end = false }
     if buf.end
