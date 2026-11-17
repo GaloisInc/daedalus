@@ -129,7 +129,7 @@ def Pos: uint 64 = Number
 -- available
 -- ...
 -- String, no whitespace or semicolons permitted
-def Id: maybe [[uint 8]] = D (SepBy1 $[';'] (Many $[ $printable - ' ' - ';']))
+def Id: maybe [[uint 8]] = D (SepBy1 $[';'] (Many1 $[ $printable - ' ' - ';']))
 
 
 def $base = 'a' | 'c' | 'g' | 't' | 'n' | 'A' | 'C' | 'G' | 'T' | 'N'
@@ -175,17 +175,17 @@ def Filter: maybe [[uint 8]] =
   D
     First
       { Match "PASS"; [] }
-      SepBy1 $[';'] (Many $[ $printable - ' ' - ';'])
+      SepBy1 $[';'] (Many1 $[ $printable - ' ' - ';'])
 
 
 def InfoKV =
   block
-    key = Many $[ $printable - ' ' - ';' - '=' - ',' ]
+    key = Many1 $[ $printable - ' ' - ';' - '=' - ',' ]
     vals =
       First
         block
           $['=']
-          SepBy1 $[','] (Many $[ $printable - ' ' - ';' - '=' - ',' ])
+          SepBy1 $[','] (Many1 $[ $printable - ' ' - ';' - '=' - ',' ])
 
         []
 
