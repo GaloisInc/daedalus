@@ -10,6 +10,24 @@
 		}
 	],
 	"repository": {
+		"comments": {
+			"patterns": [
+				{
+					"name": "comment.line.daedalus",
+					"match": "--.*"
+				},
+				{
+					"name": "comment.block.daedalus",
+					"begin": "{-",
+					"end": "-}",
+					"patterns": [
+						{
+							"include": "#comments"
+						}
+					]
+				}
+			]
+		},
 		"keywords": {
 			"patterns": [
 				{
