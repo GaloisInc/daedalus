@@ -80,6 +80,7 @@ partialApply tnm' targs newPs args
     subst = foldl (flip mkOne) emptySubst $ catMaybes
             $ zipWith (\x y -> (x, ) <$> y) tparams args -- don't need extended here, as we drop Nothings
     mkOne (ValParam p,     ValArg e)     = addSubst p (texprValue e)
+    mkOne (ClassParam p,   ClassArg e)   = addSubst p (texprValue e)
     mkOne (GrammarParam p, GrammarArg e) = addSubst p (texprValue e)
     mkOne (p, a) = panic ("Mismatched argument kinds: " ++ show (pp p) ++ " " ++ show (pp a))  []
 
