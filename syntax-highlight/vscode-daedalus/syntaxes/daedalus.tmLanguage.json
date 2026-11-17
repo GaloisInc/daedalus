@@ -14,10 +14,12 @@
 	],
 	"repository": {
 		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.daedalus",
-				"match": "\\b(if|while|for|return)\\b"
-			}]
+			"patterns": [
+				{
+					"name": "keyword.control.daedalus",
+					"match": "\\b(if|while|for|return)\\b"
+				}
+			]
 		},
 		"strings": {
 			"name": "string.quoted.double.daedalus",
