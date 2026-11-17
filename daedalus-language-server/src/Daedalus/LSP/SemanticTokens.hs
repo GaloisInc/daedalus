@@ -57,6 +57,9 @@ tokenToSTT tok = flip (,) [] <$> typ
     op  = Just J.SemanticTokenTypes_Operator
     kw  = Just J.SemanticTokenTypes_Keyword
 
+    -- `Macro` was chosen somewhat arbitrarily
+    parser = Just J.SemanticTokenTypes_Macro
+
     typ = case tok of
       BigIdent    -> var
       SmallIdent  -> var
@@ -103,15 +106,8 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWblock             -> kw
       KWlet               -> kw
       KWTry               -> kw
-      KWMatch             -> kw
-      KWMany              -> kw
-      KWManyQuestion      -> kw
       KWmany              -> kw
       KWmanyQuestion      -> kw
-      KWOptional          -> kw
-      KWOptionalQuestion  -> kw
-      KWAccept            -> kw
-      KWUInt8             -> kw
       KWTrue              -> kw
       KWFalse             -> kw
       KWFor               -> kw
@@ -145,28 +141,18 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWAsBang            -> kw
       KWAsQuestion        -> kw
       KWConcat            -> kw
-      KWEND               -> kw
       KWCOMMIT            -> kw
       KWMapEmpty          -> kw
-      KWMapInsert         -> kw
-      KWMapLookup         -> kw
       KWMapIsEmpty        -> kw
       KWArrayLength       -> kw
-      KWArrayIndex        -> kw
       KWRangeUp           -> kw
       KWRangeDown         -> kw
-      KWOffset            -> kw
-      KWGetStream         -> kw
-      KWSetStream         -> kw
       KWBytesOfStream     -> kw
-      KWTake              -> kw
       KWtake              -> kw
-      KWDrop              -> kw
       KWJust              -> kw
       KWNothing           -> kw
       KWDef               -> kw
       KWArrayStream       -> kw
-      KWFail              -> kw
       KWCase              -> kw
       KWBitData           -> kw
       KWWhere             -> kw
@@ -178,7 +164,25 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWBuilderemitArray  -> kw
       KWBuilderemitBuilder -> kw
       KWBuilderbuilder    -> kw
-      KWDollarAny         -> kw
+
+      KWTake              -> parser
+      KWDrop              -> parser
+      KWOffset            -> parser
+      KWGetStream         -> parser
+      KWSetStream         -> parser
+      KWArrayIndex        -> parser
+      KWMapInsert         -> parser
+      KWMapLookup         -> parser
+      KWMatch             -> parser
+      KWMany              -> parser
+      KWManyQuestion      -> parser
+      KWOptional          -> parser
+      KWOptionalQuestion  -> parser
+      KWAccept            -> parser
+      KWUInt8             -> parser
+      KWEND               -> parser
+      KWFail              -> parser
+      KWDollarAny         -> parser
 
       OpenBrace     -> Nothing
       CloseBrace    -> Nothing
