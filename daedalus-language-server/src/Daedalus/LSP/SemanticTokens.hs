@@ -68,25 +68,6 @@ tokenToSTT tok = flip (,) [] <$> typ
       Bytes  {}   -> str
       Byte   {}   -> num
 
-      -- OpenBrace
-      -- CloseBrace
-      -- OpenBraceBar
-      -- CloseBraceBar
-      -- OpenParen
-      -- CloseParen
-      -- OpenBracket
-      -- CloseBracket
-      -- OpenTri
-      -- CloseTri
-
-      -- VOpen | VSemi | VClose    -- inserted via layout
-
-      -- Semi
-      -- Colon
-      -- Dot
-      -- DotDot
-      -- Comma
-
       AtSign       -> op
       Equals       -> op
       DoubleEquals -> op
@@ -199,7 +180,27 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWBuilderbuilder    -> kw
       KWDollarAny         -> kw
 
-      _ -> Nothing
+      OpenBrace     -> Nothing
+      CloseBrace    -> Nothing
+      OpenBraceBar  -> Nothing
+      CloseBraceBar -> Nothing
+      OpenParen     -> Nothing
+      CloseParen    -> Nothing
+      OpenBracket   -> Nothing
+      CloseBracket  -> Nothing
+      OpenTri       -> Nothing
+      CloseTri      -> Nothing
+      VOpen         -> Nothing
+      VSemi         -> Nothing
+      VClose        -> Nothing
+      Semi          -> Nothing
+      Colon         -> Nothing
+      Dot           -> Nothing
+      DotDot        -> Nothing
+      Comma         -> Nothing
+      Dollar        -> Nothing
+      TokError _    -> Nothing
+      TokEOF        -> Nothing
 
 -- | Returns true if r is inside (maybe partially) r'
 inRange :: J.Range -> J.Range -> Bool
