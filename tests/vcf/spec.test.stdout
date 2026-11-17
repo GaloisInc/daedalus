@@ -1,0 +1,449 @@
+--- Found 1 results:
+{ meta: [ { key: "fileformat"
+          , val: {unstructured: "VCFv4.2"}
+          }
+        , { key: "fileDate"
+          , val: {unstructured: "20090805"}
+          }
+        , { key: "source"
+          , val: {unstructured: "myImputationProgramV3.1"}
+          }
+        , { key: "reference"
+          , val: {unstructured: "file:///seq/references/1000GenomesPilot-NCBI36.fasta"}
+          }
+        , { key: "contig"
+          , val: {structured: [ { key: "ID"
+                                , val: "20"
+                                }
+                              , { key: "length"
+                                , val: "62435964"
+                                }
+                              , { key: "assembly"
+                                , val: "B36"
+                                }
+                              , { key: "md5"
+                                , val: "f126cdf8a6e0c7f379d618ff66beb2da"
+                                }
+                              , { key: "species"
+                                , val: "Homo sapiens"
+                                }
+                              , { key: "taxonomy"
+                                , val: "x"
+                                }
+                              ]}
+          }
+        , { key: "phasing"
+          , val: {unstructured: "partial"}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "NS"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Number of Samples With Data"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "DP"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Total Depth"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "AF"
+                                }
+                              , { key: "Number"
+                                , val: "A"
+                                }
+                              , { key: "Type"
+                                , val: "Float"
+                                }
+                              , { key: "Description"
+                                , val: "Allele Frequency"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "AA"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "String"
+                                }
+                              , { key: "Description"
+                                , val: "Ancestral Allele"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "DB"
+                                }
+                              , { key: "Number"
+                                , val: "0"
+                                }
+                              , { key: "Type"
+                                , val: "Flag"
+                                }
+                              , { key: "Description"
+                                , val: "dbSNP membership, build 129"
+                                }
+                              ]}
+          }
+        , { key: "INFO"
+          , val: {structured: [ { key: "ID"
+                                , val: "H2"
+                                }
+                              , { key: "Number"
+                                , val: "0"
+                                }
+                              , { key: "Type"
+                                , val: "Flag"
+                                }
+                              , { key: "Description"
+                                , val: "HapMap2 membership"
+                                }
+                              ]}
+          }
+        , { key: "FILTER"
+          , val: {structured: [ { key: "ID"
+                                , val: "q10"
+                                }
+                              , { key: "Description"
+                                , val: "Quality below 10"
+                                }
+                              ]}
+          }
+        , { key: "FILTER"
+          , val: {structured: [ { key: "ID"
+                                , val: "s50"
+                                }
+                              , { key: "Description"
+                                , val: "Less than 50% of samples have data"
+                                }
+                              ]}
+          }
+        , { key: "FORMAT"
+          , val: {structured: [ { key: "ID"
+                                , val: "GT"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "String"
+                                }
+                              , { key: "Description"
+                                , val: "Genotype"
+                                }
+                              ]}
+          }
+        , { key: "FORMAT"
+          , val: {structured: [ { key: "ID"
+                                , val: "GQ"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Genotype Quality"
+                                }
+                              ]}
+          }
+        , { key: "FORMAT"
+          , val: {structured: [ { key: "ID"
+                                , val: "DP"
+                                }
+                              , { key: "Number"
+                                , val: "1"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Read Depth"
+                                }
+                              ]}
+          }
+        , { key: "FORMAT"
+          , val: {structured: [ { key: "ID"
+                                , val: "HQ"
+                                }
+                              , { key: "Number"
+                                , val: "2"
+                                }
+                              , { key: "Type"
+                                , val: "Integer"
+                                }
+                              , { key: "Description"
+                                , val: "Haplotype Quality"
+                                }
+                              ]}
+          }
+        ]
+, hdr: { samples: [ "NA00001"
+                  , "NA00002"
+                  , "NA00003"
+                  ]
+       }
+, data: [ { chrom: "20"
+          , pos: 14370[64]
+          , id: Just [ "rs6054257"
+                     ]
+          , ref: "G"
+          , alt: Just [ "A"
+                      ]
+          , qual: Just 29[64]
+          , filter: Just [ ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "3"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "14"
+                                 ]
+                         }
+                       , { key: "AF"
+                         , vals: [ "0.5"
+                                 ]
+                         }
+                       , { key: "DB"
+                         , vals: [ ]
+                         }
+                       , { key: "H2"
+                         , vals: [ ]
+                         }
+                       ]
+          , samples: [ [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "48"}
+                       , {dp: Just 1[64]}
+                       , {hq: Just (Just 51[64], Just 51[64])}
+                       ]
+                     , [ {gt: [ Just 1[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "48"}
+                       , {dp: Just 8[64]}
+                       , {hq: Just (Just 51[64], Just 51[64])}
+                       ]
+                     , [ {gt: [ Just 1[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "43"}
+                       , {dp: Just 5[64]}
+                       , {hq: Just (Nothing, Nothing)}
+                       ]
+                     ]
+          }
+        , { chrom: "20"
+          , pos: 17330[64]
+          , id: Nothing
+          , ref: "T"
+          , alt: Just [ "A"
+                      ]
+          , qual: Just 3[64]
+          , filter: Just [ "q10"
+                         ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "3"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "11"
+                                 ]
+                         }
+                       , { key: "AF"
+                         , vals: [ "0.017"
+                                 ]
+                         }
+                       ]
+          , samples: [ [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "49"}
+                       , {dp: Just 3[64]}
+                       , {hq: Just (Just 58[64], Just 50[64])}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "3"}
+                       , {dp: Just 5[64]}
+                       , {hq: Just (Just 65[64], Just 3[64])}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "41"}
+                       , {dp: Just 3[64]}
+                       , {hq: Nothing}
+                       ]
+                     ]
+          }
+        , { chrom: "20"
+          , pos: 1110696[64]
+          , id: Just [ "rs6040355"
+                     ]
+          , ref: "A"
+          , alt: Just [ "G"
+                      , "T"
+                      ]
+          , qual: Just 67[64]
+          , filter: Just [ ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "2"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "10"
+                                 ]
+                         }
+                       , { key: "AF"
+                         , vals: [ "0.333"
+                                 , "0.667"
+                                 ]
+                         }
+                       , { key: "AA"
+                         , vals: [ "T"
+                                 ]
+                         }
+                       , { key: "DB"
+                         , vals: [ ]
+                         }
+                       ]
+          , samples: [ [ {gt: [ Just 1[64]
+                              , Just 2[64]
+                              ]}
+                       , {unknown: Just "21"}
+                       , {dp: Just 6[64]}
+                       , {hq: Just (Just 23[64], Just 27[64])}
+                       ]
+                     , [ {gt: [ Just 2[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "2"}
+                       , {dp: Just 0[64]}
+                       , {hq: Just (Just 18[64], Just 2[64])}
+                       ]
+                     , [ {gt: [ Just 2[64]
+                              , Just 2[64]
+                              ]}
+                       , {unknown: Just "35"}
+                       , {dp: Just 4[64]}
+                       , {hq: Nothing}
+                       ]
+                     ]
+          }
+        , { chrom: "20"
+          , pos: 1230237[64]
+          , id: Nothing
+          , ref: "T"
+          , alt: Nothing
+          , qual: Just 47[64]
+          , filter: Just [ ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "3"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "13"
+                                 ]
+                         }
+                       , { key: "AA"
+                         , vals: [ "T"
+                                 ]
+                         }
+                       ]
+          , samples: [ [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "54"}
+                       , {dp: Just 7[64]}
+                       , {hq: Just (Just 56[64], Just 60[64])}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "48"}
+                       , {dp: Just 4[64]}
+                       , {hq: Just (Just 51[64], Just 51[64])}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 0[64]
+                              ]}
+                       , {unknown: Just "61"}
+                       , {dp: Just 2[64]}
+                       , {hq: Nothing}
+                       ]
+                     ]
+          }
+        , { chrom: "20"
+          , pos: 1234567[64]
+          , id: Just [ "microsat1"
+                     ]
+          , ref: "GTC"
+          , alt: Just [ "G"
+                      , "GTCT"
+                      ]
+          , qual: Just 50[64]
+          , filter: Just [ ]
+          , info: Just [ { key: "NS"
+                         , vals: [ "3"
+                                 ]
+                         }
+                       , { key: "DP"
+                         , vals: [ "9"
+                                 ]
+                         }
+                       , { key: "AA"
+                         , vals: [ "G"
+                                 ]
+                         }
+                       ]
+          , samples: [ [ {gt: [ Just 0[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "35"}
+                       , {dp: Just 4[64]}
+                       ]
+                     , [ {gt: [ Just 0[64]
+                              , Just 2[64]
+                              ]}
+                       , {unknown: Just "17"}
+                       , {dp: Just 2[64]}
+                       ]
+                     , [ {gt: [ Just 1[64]
+                              , Just 1[64]
+                              ]}
+                       , {unknown: Just "40"}
+                       , {dp: Just 3[64]}
+                       ]
+                     ]
+          }
+        ]
+}
