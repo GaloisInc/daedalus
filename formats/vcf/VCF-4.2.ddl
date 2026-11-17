@@ -20,14 +20,21 @@ def Newline =
     @$lf
 
 
+-- An identifier comprised of printable characters, less the provided class
+def IdentExcept $except: [uint 8] = Many1 $[ $printable - $except ]
+
+
+-- An `IdentExcept` or a `QuotedString`. In addition to the user-provided
+-- exclusions, double-quotes are automatically excluded from the identifier's
+-- language.
+def IdentOrQuoted $except: [uint 8] = IdentExcept ($except | $dq) <| QuotedString
+
+
 def StructuredEntry =
   block
-    key = Many1 $[ $printable - '=' ]
+    key = IdentExcept '='
     $['=']
-    val =
-      First
-        Many1 $[ $printable - ',' - '>' - $dq ]
-        QuotedString
+    val = IdentOrQuoted (',' | '>')
 
 
 def StructuredVal: [StructuredEntry] =
@@ -42,10 +49,7 @@ def StructuredVal: [StructuredEntry] =
 -- in 1.2 individually.
 def MetaVal =
   First
-    unstructured =
-      First
-        Many1 $[ $printable - $dq - '<' ]
-        QuotedString
+    unstructured = IdentOrQuoted '<'
     structured = StructuredVal
 
 
@@ -54,7 +58,7 @@ def MetaVal =
 def MetaLine =
   block
     Match "##"
-    key = Many1 $[ $printable - '=' ]
+    key = IdentExcept '='
     $['=']
     val = MetaVal
 
@@ -114,7 +118,7 @@ def D (P: ?a): maybe ?a =
 -- String, no whitespace permitted, Required
 def Chrom: [uint 8] =
   First
-    Many1 $[ $printable - ' ' - '.' - '<' ]
+    IdentExcept (' ' | '.' | '<')
     Bracketed ($printable - ' ' - '.')
 
 
@@ -129,7 +133,7 @@ def Pos: uint 64 = Number
 -- available
 -- ...
 -- String, no whitespace or semicolons permitted
-def Id: maybe [[uint 8]] = D (SepBy1 $[';'] (Many1 $[ $printable - ' ' - ';']))
+def Id: maybe [[uint 8]] = D (SepBy1 $[';'] (IdentExcept (' ' | ';')))
 
 
 def $base = 'a' | 'c' | 'g' | 't' | 'n' | 'A' | 'C' | 'G' | 'T' | 'N'
@@ -175,17 +179,17 @@ def Filter: maybe [[uint 8]] =
   D
     First
       { Match "PASS"; [] }
-      SepBy1 $[';'] (Many1 $[ $printable - ' ' - ';'])
+      SepBy1 $[';'] (IdentExcept (' ' | ';'))
 
 
 def InfoKV =
   block
-    key = Many1 $[ $printable - ' ' - ';' - '=' - ',' ]
+    key = IdentExcept (' ' | ';' | '=' | ',')
     vals =
       First
         block
           $['=']
-          SepBy1 $[','] (Many1 $[ $printable - ' ' - ';' - '=' - ',' ])
+          SepBy1 $[','] (IdentExcept (' ' | ';' | '=' | ','))
 
         []
 
@@ -255,7 +259,7 @@ def Sample (format: [[uint 8]]): [SampleT] =
               "GT" -> {| gt = GT |}
               "DP" -> {| dp = D Number |}
               "HQ" -> {| hq = HQ |}
-              _    -> {| unknown = D (Many1 $[ $printable - ':' ]) |}
+              _    -> {| unknown = D (IdentExcept ':') |}
           { idx = st.idx + 1, res = emit st.res item }
 
     -- Per 1.4.2, trailing fields can be dropped, so we add missing fields as
