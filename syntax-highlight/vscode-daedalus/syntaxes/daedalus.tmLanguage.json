@@ -7,9 +7,6 @@
 		},
 		{
 			"include": "#keywords"
-		},
-		{
-			"include": "#strings"
 		}
 	],
 	"repository": {
@@ -18,17 +15,6 @@
 				{
 					"name": "keyword.control.daedalus",
 					"match": "\\b(if|while|for|return)\\b"
-				}
-			]
-		},
-		"strings": {
-			"name": "string.quoted.double.daedalus",
-			"begin": "\"",
-			"end": "\"",
-			"patterns": [
-				{
-					"name": "constant.character.escape.daedalus",
-					"match": "\\\\."
 				}
 			]
 		}
