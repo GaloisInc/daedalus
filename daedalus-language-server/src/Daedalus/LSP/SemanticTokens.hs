@@ -118,14 +118,18 @@ tokenToSTT tok = flip (,) [] <$> typ
       BitwiseComplementT -> op
 
       KWChoose            -> kw
+      KWFirst             -> kw
       KWblock             -> kw
       KWlet               -> kw
       KWTry               -> kw
       KWMatch             -> kw
       KWMany              -> kw
       KWManyQuestion      -> kw
+      KWmany              -> kw
+      KWmanyQuestion      -> kw
       KWOptional          -> kw
       KWOptionalQuestion  -> kw
+      KWAccept            -> kw
       KWUInt8             -> kw
       KWTrue              -> kw
       KWFalse             -> kw
@@ -138,12 +142,24 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWUInt              -> kw
       KWSInt              -> kw
       KWBool              -> kw
+      KWFloat             -> kw
+      KWDouble            -> kw
+      KWpi                -> kw
+      KWWordToFloat       -> kw
+      KWWordToDouble      -> kw
+      KWIsNaN             -> kw
+      KWIsInfinite        -> kw
+      KWIsDenormalized    -> kw
+      KWIsNegativeZero    -> kw
+      KWstruct            -> kw
+      KWunion             -> kw
       KWMaybe             -> kw
       KWStream            -> kw
       KWIf                -> kw
       KWThen              -> kw
       KWElse              -> kw
       KWImport            -> kw
+      KWExtern            -> kw
       KWAs                -> kw
       KWAsBang            -> kw
       KWAsQuestion        -> kw
@@ -161,7 +177,9 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWOffset            -> kw
       KWGetStream         -> kw
       KWSetStream         -> kw
+      KWBytesOfStream     -> kw
       KWTake              -> kw
+      KWtake              -> kw
       KWDrop              -> kw
       KWJust              -> kw
       KWNothing           -> kw
@@ -171,6 +189,15 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWCase              -> kw
       KWBitData           -> kw
       KWWhere             -> kw
+      KWMapinsert         -> kw
+      KWMaplookup         -> kw
+      KWMaplookupLE       -> kw
+      KWBuilderbuild      -> kw
+      KWBuilderemit       -> kw
+      KWBuilderemitArray  -> kw
+      KWBuilderemitBuilder -> kw
+      KWBuilderbuilder    -> kw
+      KWDollarAny         -> kw
 
       _ -> Nothing
 
