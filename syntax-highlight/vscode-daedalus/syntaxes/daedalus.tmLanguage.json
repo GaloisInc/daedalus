@@ -7,26 +7,27 @@
 		},
 		{
 			"include": "#keywords"
-		},
-		{
-			"include": "#strings"
 		}
 	],
 	"repository": {
-		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.daedalus",
-				"match": "\\b(if|while|for|return)\\b"
-			}]
-		},
-		"strings": {
-			"name": "string.quoted.double.daedalus",
-			"begin": "\"",
-			"end": "\"",
+		"comments": {
 			"patterns": [
 				{
-					"name": "constant.character.escape.daedalus",
-					"match": "\\\\."
+					"name": "comment.line.daedalus",
+					"match": "--.*"
+				},
+				{
+					"name": "comment.block.daedalus",
+					"begin": "{-",
+					"end": "-}"
+				}
+			]
+		},
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.control.daedalus",
+					"match": "\\b(if|while|for|return)\\b"
 				}
 			]
 		}

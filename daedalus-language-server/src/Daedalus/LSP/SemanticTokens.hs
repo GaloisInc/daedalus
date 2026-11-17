@@ -57,6 +57,9 @@ tokenToSTT tok = flip (,) [] <$> typ
     op  = Just J.SemanticTokenTypes_Operator
     kw  = Just J.SemanticTokenTypes_Keyword
 
+    -- `Macro` was chosen somewhat arbitrarily
+    parser = Just J.SemanticTokenTypes_Macro
+
     typ = case tok of
       BigIdent    -> var
       SmallIdent  -> var
@@ -67,25 +70,6 @@ tokenToSTT tok = flip (,) [] <$> typ
       Number {}   -> num
       Bytes  {}   -> str
       Byte   {}   -> num
-
-      -- OpenBrace
-      -- CloseBrace
-      -- OpenBraceBar
-      -- CloseBraceBar
-      -- OpenParen
-      -- CloseParen
-      -- OpenBracket
-      -- CloseBracket
-      -- OpenTri
-      -- CloseTri
-
-      -- VOpen | VSemi | VClose    -- inserted via layout
-
-      -- Semi
-      -- Colon
-      -- Dot
-      -- DotDot
-      -- Comma
 
       AtSign       -> op
       Equals       -> op
@@ -118,15 +102,12 @@ tokenToSTT tok = flip (,) [] <$> typ
       BitwiseComplementT -> op
 
       KWChoose            -> kw
+      KWFirst             -> kw
       KWblock             -> kw
       KWlet               -> kw
       KWTry               -> kw
-      KWMatch             -> kw
-      KWMany              -> kw
-      KWManyQuestion      -> kw
-      KWOptional          -> kw
-      KWOptionalQuestion  -> kw
-      KWUInt8             -> kw
+      KWmany              -> kw
+      KWmanyQuestion      -> kw
       KWTrue              -> kw
       KWFalse             -> kw
       KWFor               -> kw
@@ -138,41 +119,92 @@ tokenToSTT tok = flip (,) [] <$> typ
       KWUInt              -> kw
       KWSInt              -> kw
       KWBool              -> kw
+      KWFloat             -> kw
+      KWDouble            -> kw
+      KWpi                -> kw
+      KWWordToFloat       -> kw
+      KWWordToDouble      -> kw
+      KWIsNaN             -> kw
+      KWIsInfinite        -> kw
+      KWIsDenormalized    -> kw
+      KWIsNegativeZero    -> kw
+      KWstruct            -> kw
+      KWunion             -> kw
       KWMaybe             -> kw
       KWStream            -> kw
       KWIf                -> kw
       KWThen              -> kw
       KWElse              -> kw
       KWImport            -> kw
+      KWExtern            -> kw
       KWAs                -> kw
       KWAsBang            -> kw
       KWAsQuestion        -> kw
       KWConcat            -> kw
-      KWEND               -> kw
       KWCOMMIT            -> kw
       KWMapEmpty          -> kw
-      KWMapInsert         -> kw
-      KWMapLookup         -> kw
       KWMapIsEmpty        -> kw
       KWArrayLength       -> kw
-      KWArrayIndex        -> kw
       KWRangeUp           -> kw
       KWRangeDown         -> kw
-      KWOffset            -> kw
-      KWGetStream         -> kw
-      KWSetStream         -> kw
-      KWTake              -> kw
-      KWDrop              -> kw
+      KWBytesOfStream     -> kw
+      KWtake              -> kw
       KWJust              -> kw
       KWNothing           -> kw
       KWDef               -> kw
       KWArrayStream       -> kw
-      KWFail              -> kw
       KWCase              -> kw
       KWBitData           -> kw
       KWWhere             -> kw
+      KWMapinsert         -> kw
+      KWMaplookup         -> kw
+      KWMaplookupLE       -> kw
+      KWBuilderbuild      -> kw
+      KWBuilderemit       -> kw
+      KWBuilderemitArray  -> kw
+      KWBuilderemitBuilder -> kw
+      KWBuilderbuilder    -> kw
 
-      _ -> Nothing
+      KWTake              -> parser
+      KWDrop              -> parser
+      KWOffset            -> parser
+      KWGetStream         -> parser
+      KWSetStream         -> parser
+      KWArrayIndex        -> parser
+      KWMapInsert         -> parser
+      KWMapLookup         -> parser
+      KWMatch             -> parser
+      KWMany              -> parser
+      KWManyQuestion      -> parser
+      KWOptional          -> parser
+      KWOptionalQuestion  -> parser
+      KWAccept            -> parser
+      KWUInt8             -> parser
+      KWEND               -> parser
+      KWFail              -> parser
+      KWDollarAny         -> parser
+
+      OpenBrace     -> Nothing
+      CloseBrace    -> Nothing
+      OpenBraceBar  -> Nothing
+      CloseBraceBar -> Nothing
+      OpenParen     -> Nothing
+      CloseParen    -> Nothing
+      OpenBracket   -> Nothing
+      CloseBracket  -> Nothing
+      OpenTri       -> Nothing
+      CloseTri      -> Nothing
+      VOpen         -> Nothing
+      VSemi         -> Nothing
+      VClose        -> Nothing
+      Semi          -> Nothing
+      Colon         -> Nothing
+      Dot           -> Nothing
+      DotDot        -> Nothing
+      Comma         -> Nothing
+      Dollar        -> Nothing
+      TokError _    -> Nothing
+      TokEOF        -> Nothing
 
 -- | Returns true if r is inside (maybe partially) r'
 inRange :: J.Range -> J.Range -> Bool
