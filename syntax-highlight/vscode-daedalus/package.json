@@ -6,7 +6,7 @@
     "repository": {
         "url": "https://github.com/GaloisInc/daedalus/tree/master/syntax-highlight/vscode-daedalus"
     },
-    "version": "0.0.4",
+    "version": "0.0.5",
     "engines": {
         "vscode": "^1.100.0"
     },
@@ -31,6 +31,22 @@
                     },
                     "default": [],
                     "description": "Directories to search for imported Daedalus modules. Relative paths are resolved from the workspace root."
+                },
+                "daedalus.logLevel": {
+                    "type": "string",
+                    "enum": [
+                        "DEBUG",
+                        "INFO",
+                        "NOTICE",
+                        "WARNING",
+                        "ERROR",
+                        "CRITICAL",
+                        "ALERT",
+                        "EMERGENCY"
+                    ],
+                    "default": "WARNING",
+                    "description": "Log level for the server.",
+                    "_note": "These enumeration values are, and must be, comprehensible by the `FromJSON` instance for `Daedalus.LSP.Monad.LogLevel`"
                 }
             }
         },

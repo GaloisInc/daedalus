@@ -27,6 +27,11 @@ import           Data.Aeson                    (encode, fromJSON)
 import           Data.Aeson.Types              (Result (..))
 import           Data.Maybe                    (fromMaybe)
 
+import           System.IO                     (stderr)
+import           System.Log.Formatter          (simpleLogFormatter)
+import           System.Log.Handler            (LogHandler (setFormatter))
+import           System.Log.Handler.Simple     (streamHandler)
+
 import qualified Language.LSP.Protocol.Lens    as J
 import qualified Language.LSP.Protocol.Message as J
 import qualified Language.LSP.Protocol.Types   as J
@@ -47,14 +52,28 @@ import           Daedalus.LSP.Worker           (requestParse,
 newtype ReactorInput
   = ReactorAction (IO ())
 
+-- | Set up log messages from all sources, at or above `WARNING`, to be lightly
+-- formatted and sent to stderr.
+initializeLogging :: IO ()
+initializeLogging = do
+  -- Make the root logger have a single handler that will pass along all
+  -- messages it receives. With this arrangement, we can change the overall log
+  -- level by only changing the root logger's log level.
+  hdlr <- streamHandler stderr (minBound :: Priority)
+  let hdlr' = setFormatter hdlr fmtr
+  updateGlobalLogger rootLoggerName (setHandlers [hdlr'])
+  where
+    fmtr = simpleLogFormatter "[$prio]\t($loggername)\t$msg"
+
 run :: IO Int
 run = flip E.catches handlers $ do
+  initializeLogging
 
   rin  <- atomically newTChan :: IO (TChan ReactorInput)
 
   let
     serverDefinition = ServerDefinition
-      { defaultConfig = Config []
+      { defaultConfig = Config [] defaultLogLevel
       , configSection = "daedalus"
       , onConfigChange = \_cfg -> pure ()
       , parseConfig = \_old v -> do
@@ -75,7 +94,6 @@ run = flip E.catches handlers $ do
       , options = lspOptions
       }
 
-  -- FIXME: add logging
   flip E.finally finalProc (runServer serverDefinition)
 
   where
@@ -157,7 +175,14 @@ handle = mconcat
 
   , notificationHandler J.SMethod_WorkspaceDidChangeConfiguration $ \msg -> do
       cfg <- getConfig
+
+      -- See `initializeLogging` for why this suffices to change the overall log
+      -- output behavior
+      let LogLevel p = logLevel cfg
+      liftIO $ updateGlobalLogger rootLoggerName (setLevel p)
+
       liftIO $ debugM "configuration changed: " (show (msg,cfg))
+
       sst <- ask
       liftIO $ atomically $ writeTChan (workerChan sst) ReconfigureReq
 
