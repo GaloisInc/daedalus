@@ -44,7 +44,9 @@ import           Daedalus.LSP.Command
 import           Daedalus.LSP.LanguageFeatures
 import           Daedalus.LSP.Monad
 import           Daedalus.LSP.Worker           (requestProcess,
-                                                requestProcessCurrent, worker)
+                                                requestProcessCurrent,
+                                                requestTokenizeCurrent,
+                                                worker)
 
 
 -- SI for server impl.
@@ -193,7 +195,12 @@ handle = mconcat
     let uri = doc ^. J.uri . to J.toNormalizedUri
     liftIO $ debugM "reactor.handle" $ "Processing DidChangeTextDocument for: " ++ show uri
 
-    pure ()
+    -- It's important that we recompute semantic tokens for a document when it
+    -- changes: clients generally request new semantic token information each
+    -- time a document changes, and if we don't keep up, we'll fulfill those
+    -- requests with stale information.
+    sst <- ask
+    liftIO $ requestTokenizeCurrent sst uri
 
   , notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
       let uri = msg ^. J.params

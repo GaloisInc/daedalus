@@ -70,6 +70,14 @@ data WorkerRequest =
       Int
       -- | The text of the module
       Text
+    -- | Just lex and tokenize the given module
+  | TokenizeReq
+      -- | The module's URI
+      J.NormalizedUri
+      -- | The (LSP-determined) version of the module
+      J.Int32
+      -- | The text of the module
+      Text
   | ClosedReq J.NormalizedUri
   | WakeUpReq
   | ReconfigureReq

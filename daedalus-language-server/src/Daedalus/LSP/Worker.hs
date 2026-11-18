@@ -8,7 +8,7 @@
 -- | This module contains the worker thread, i.e., the thread which
 -- does all the parsing and type checking.
 {-# LANGUAGE DeriveFunctor #-}
-module Daedalus.LSP.Worker (requestProcess, requestProcessCurrent, worker) where
+module Daedalus.LSP.Worker (requestProcess, requestProcessCurrent, requestTokenizeCurrent, worker) where
 
 import           Control.Concurrent            (threadDelay)
 import           Control.Concurrent.Async      (Async, async, cancel)
@@ -98,6 +98,16 @@ requestProcessCurrent sst uri delay = do
   where
     sendReq (version, txt) = atomically $
       writeTChan (workerChan sst) (ProcessReq uri version delay txt)
+
+requestTokenizeCurrent :: ServerState -> J.NormalizedUri -> IO ()
+requestTokenizeCurrent sst uri = do
+  m_doc <- runLspT (lspEnv sst) $ do
+    mdoc <- getVirtualFile uri
+    pure $ (\vf -> (virtualFileVersion vf, virtualFileText vf)) <$> mdoc
+  traverse_ sendReq m_doc
+  where
+    sendReq (version, txt) = atomically $
+      writeTChan (workerChan sst) (TokenizeReq uri version txt)
 
 -- The workflow is this:
 -- 1. A message comes in telling us about a change to a file
@@ -520,6 +530,10 @@ worker sst = void $ runWorkerM go (initWorkerState (passState sst))
           addModuleFromRequest uri ver txt
           publishModules
           startTimer sst delay
+
+        TokenizeReq uri ver txt -> do
+          addModuleFromRequest uri ver txt
+          publishModules
 
         ClosedReq uri -> do
           let mFilename = J.uriToFilePath (J.fromNormalizedUri uri)
