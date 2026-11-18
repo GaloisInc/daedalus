@@ -8,7 +8,12 @@
 -- | This module contains the worker thread, i.e., the thread which
 -- does all the parsing and type checking.
 {-# LANGUAGE DeriveFunctor #-}
-module Daedalus.LSP.Worker (requestProcess, requestProcessCurrent, requestTokenizeCurrent, worker) where
+module Daedalus.LSP.Worker
+  ( requestProcess,
+    requestProcessCurrent,
+    requestTokenizeCurrent,
+    worker
+  ) where
 
 import           Control.Concurrent            (threadDelay)
 import           Control.Concurrent.Async      (Async, async, cancel)

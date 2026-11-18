@@ -242,7 +242,7 @@ handle = mconcat
 
       -- vdoc <- getVersionedTextDoc (params ^. J.textDocument)
       rename (untypedErrResp responder) uri pos newName -- vdoc
-  
+
   , requestHandler J.SMethod_TextDocumentSemanticTokensFull $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/full request"
       let params = req ^. J.params
