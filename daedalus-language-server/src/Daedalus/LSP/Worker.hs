@@ -88,7 +88,7 @@ requestParse sst uri version delay = do
   traverse_ sendReq m_txt
   where
     sendReq txt = atomically $
-      writeTChan (workerChan sst) (ChangedReq uri version delay txt)
+      writeTChan (workerChan sst) (ProcessReq uri version delay txt)
 
 requestParseCurrent :: ServerState -> J.NormalizedUri -> Int -> IO ()
 requestParseCurrent sst uri delay = do
@@ -98,7 +98,7 @@ requestParseCurrent sst uri delay = do
   traverse_ sendReq m_doc
   where
     sendReq (version, txt) = atomically $
-      writeTChan (workerChan sst) (ChangedReq uri version delay txt)
+      writeTChan (workerChan sst) (ProcessReq uri version delay txt)
 
 -- The workflow is this:
 -- 1. A message comes in telling us about a change to a file
@@ -517,7 +517,7 @@ worker sst = void $ runWorkerM go (initWorkerState (passState sst))
     go = forever $ do
       req <- liftIO $ atomically $ readTChan (workerChan sst)
       case req of
-        ChangedReq uri ver delay txt -> do
+        ProcessReq uri ver delay txt -> do
           addModuleFromRequest uri ver txt
           publishModules
           startTimer sst delay
