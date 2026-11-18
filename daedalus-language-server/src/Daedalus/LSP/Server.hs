@@ -43,8 +43,8 @@ import           System.Log.Logger
 import           Daedalus.LSP.Command
 import           Daedalus.LSP.LanguageFeatures
 import           Daedalus.LSP.Monad
-import           Daedalus.LSP.Worker           (requestParse,
-                                                requestParseCurrent, worker)
+import           Daedalus.LSP.Worker           (requestProcess,
+                                                requestProcessCurrent, worker)
 
 
 -- SI for server impl.
@@ -171,7 +171,7 @@ handle = mconcat
     sst <- ask
     liftIO $ debugM "reactor.handle" $ "Processing didOpen for: " ++ show doc
 
-    liftIO $ requestParse sst uri (doc ^. J.version) debounceTime
+    liftIO $ requestProcess sst uri (doc ^. J.version) debounceTime
 
   , notificationHandler J.SMethod_WorkspaceDidChangeConfiguration $ \msg -> do
       cfg <- getConfig
@@ -202,7 +202,7 @@ handle = mconcat
                     . to J.toNormalizedUri
       sst <- ask
       liftIO $ debugM "reactor.handle" $ "Processing didSave for: " ++ show uri
-      liftIO $ requestParseCurrent sst uri debounceTime
+      liftIO $ requestProcessCurrent sst uri debounceTime
 
   , notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> do
       let uri = msg ^. J.params
