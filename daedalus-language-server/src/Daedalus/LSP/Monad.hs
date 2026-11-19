@@ -6,6 +6,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Daedalus.LSP.Monad where
 
@@ -18,15 +19,18 @@ import           Control.Lens.Getter          (view)
 import           Control.Monad.IO.Unlift      (MonadUnliftIO)
 import           Control.Monad.Reader
 import           Control.Monad.STM
-import           Data.Aeson                   (FromJSON (..), ToJSON, (.:?))
-import           Data.Aeson.Types             (withObject, (.!=))
+import           Data.Aeson                   (FromJSON (..), ToJSON (..), (.:?))
+import           Data.Aeson.Types             (withObject, withText, (.!=), Value(String))
 import           Data.Foldable                (traverse_, msum)
 import           Data.Map                     (Map)
 import qualified Data.Map                     as Map
 import           Data.Maybe                   (fromMaybe)
 import           Data.Text                    (Text)
+import qualified Data.Text                    as Text
 import           GHC.Generics                 (Generic)
 import           System.IO                    (stderr)
+import           System.Log.Logger            (Priority (..))
+import           Text.Read                    (readMaybe)
 
 import           Daedalus.AST                 (Module, ModuleName)
 import           Daedalus.Driver              (Daedalus)
@@ -108,14 +112,35 @@ data ServerState =
               , workspaceRoots :: [FilePath]
               }
 
+newtype LogLevel = LogLevel Priority
+  deriving (Generic, Show)
+
+defaultLogLevel :: LogLevel
+defaultLogLevel = LogLevel WARNING
+
+instance ToJSON LogLevel where
+  toJSON (LogLevel p) = String (Text.pack (show p))
+
+instance FromJSON LogLevel where
+  parseJSON =
+    withText "LogLevel" $ \(Text.unpack -> s) ->
+      case readMaybe s of
+        Just p -> pure (LogLevel p)
+        Nothing -> fail $ "couldn't interpret '" <> s <> "' as LogLevel"
+
 -- User-alterable config
 data Config =
-  Config { searchPaths :: [FilePath] }
+  Config
+    { searchPaths :: [FilePath],
+      logLevel :: LogLevel
+    }
   deriving (Generic, ToJSON, Show)
 
 instance FromJSON Config where
   parseJSON = withObject "Daedalus configuration" $ \o ->
-    Config <$> o .:? "searchPaths" .!= []
+    Config <$>
+      o .:? "searchPaths" .!= [] <*>
+      o .:? "logLevel" .!= defaultLogLevel
 
 newtype ServerM a = ServerM { getServerM :: ReaderT ServerState (LspM Config) a }
   deriving newtype (Applicative, Functor, Monad, MonadReader ServerState
