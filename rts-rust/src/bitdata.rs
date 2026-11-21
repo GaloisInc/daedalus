@@ -26,7 +26,7 @@ macro_rules! bitdata {
 #[macro_export]
 macro_rules! bitdata_case {
     ( $ty:ty, $case_ty:ident
-      $(, ($mask:literal $(, ($p:literal, $con:ident, $t:ty))*) )*
+      $(, ($mask:literal $(, ($p:literal, $con:ident, $t:ty $(,)?))*) )*
     ) => {
 
       impl $ty {
@@ -67,7 +67,7 @@ macro_rules! bitdata_field {
 
 #[macro_export]
 macro_rules! bitdata_con {
-    ($tname: path $(, ($offset: literal, $value: expr))*) => {
+    ($tname: path $(, ($offset: literal, $value: expr $(,)?))*) => {
         { const W: u32 = <$tname>::WIDTH;
           <$tname>::from_bits_unchecked(
             <$crate::U<{W}>>::from(0u8)
@@ -79,7 +79,7 @@ macro_rules! bitdata_con {
 
 #[macro_export]
 macro_rules! bitdata_struct_serialize {
-    ($ty:ty $(, ($label:literal, $method:ident))*) => {
+    ($ty:ty $(, ($label:literal, $method:ident $(,)?))*) => {
         impl $crate::DDLSerialize for $ty {
             fn ddl_serialize<S: serde::Serializer>(
                 &self,
@@ -100,7 +100,7 @@ macro_rules! bitdata_struct_serialize {
 
 #[macro_export]
 macro_rules! bitdata_union_serialize {
-    ($ty:ty, $case_ty:ident $(,($con:ident, $label:literal))*) => {
+    ($ty:ty, $case_ty:ident $(,($con:ident, $label:literal $(,)?))*) => {
         impl $crate::DDLSerialize for $ty {
             fn ddl_serialize<S: serde::Serializer>(
                 &self,
