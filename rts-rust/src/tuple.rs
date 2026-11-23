@@ -3,7 +3,7 @@ use crate::{AsDDL, Clo, DDLSerialize, Type};
 struct TupleElements<'a, T>(&'a T);
 
 macro_rules! tuple_type {
-  ($(($ty:ident, $field:tt)),+) => {
+  ($(($ty:ident, $field:tt $(,)?)),+) => {
     impl<$($ty: Type),+> Type for ($($ty,)+) {
       // Borrow each field independently.
       type B<'a> = ($(<$ty as Type>::B<'a>,)+);

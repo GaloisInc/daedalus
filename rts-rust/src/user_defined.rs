@@ -12,7 +12,7 @@
 /// All variants require: (Pattern, "Label", value)
 #[macro_export]
 macro_rules! serialize_enum {
-  (<$($tp:ident),*>, $type:ty, $(($pat:pat, $label:literal, $val:expr)),* $(,)?) => {
+  (<$($tp:ident),*>, $type:ty, $(($pat:pat, $label:literal, $val:expr $(,)?)),* $(,)?) => {
     impl<$($tp: $crate::DDLSerialize),*> $crate::DDLSerialize for $type {
       fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
       where
@@ -52,7 +52,7 @@ macro_rules! serialize_enum {
 /// - The JSON field label
 #[macro_export]
 macro_rules! serialize_struct {
-  (<$($tp:ident),*>, $type:ty, $(($field:ident, $label:literal)),* $(,)?) => {
+  (<$($tp:ident),*>, $type:ty, $(($field:ident, $label:literal $(,)?)),* $(,)?) => {
     impl<$($tp: $crate::DDLSerialize),*> $crate::DDLSerialize for $type {
       fn ddl_serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
       where
