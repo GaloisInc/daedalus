@@ -295,8 +295,9 @@ addModule filename ms txt = do
 addModuleFromFile :: ServerState -> ModuleSource -> ModuleName ->
                      WorkerM (Either IOException ())
 addModuleFromFile sst importer mn = do
-  Config paths <- liftIO $ runLspT (lspEnv sst) getConfig
-  let importerDir = moduleSourceToDir importer
+  cfg <- liftIO $ runLspT (lspEnv sst) getConfig
+  let paths = searchPaths cfg
+      importerDir = moduleSourceToDir importer
       roots = case workspaceRoots sst of
                 [] -> [importerDir]
                 rs -> rs
