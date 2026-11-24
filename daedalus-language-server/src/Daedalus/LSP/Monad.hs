@@ -59,25 +59,15 @@ isFileModule _ = False
 -- Worker commands
 
 data WorkerRequest =
-    -- | Process (lex, tokenize, parse, and {scope,type}check) the given module,
-    -- after the given delay
-    ProcessReq
-      -- | The module's URI
+    ProcessReq -- ^ Lex, tokenize, parse, and {scope,type}check the given module
       J.NormalizedUri
-      -- | The (LSP-determined) version of the module
-      J.Int32
-      -- | The delay, in milliseconds
-      Int
-      -- | The text of the module
-      Text
-    -- | Just lex and tokenize the given module
-  | TokenizeReq
-      -- | The module's URI
+      J.Int32 -- ^ The (LSP-determined) version of the module
+      Int -- ^ The delay, in milliseconds, before starting to process
+      Text -- ^ The contents of the module
+  | TokenizeReq -- ^ Just lex and tokenize the given module
       J.NormalizedUri
-      -- | The (LSP-determined) version of the module
-      J.Int32
-      -- | The text of the module
-      Text
+      J.Int32 -- ^ The (LSP-determined) version of the module
+      Text -- ^ The contents of the module
   | ClosedReq J.NormalizedUri
   | WakeUpReq
   | ReconfigureReq
