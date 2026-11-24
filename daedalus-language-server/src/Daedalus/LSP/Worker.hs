@@ -8,7 +8,12 @@
 -- | This module contains the worker thread, i.e., the thread which
 -- does all the parsing and type checking.
 {-# LANGUAGE DeriveFunctor #-}
-module Daedalus.LSP.Worker (requestParse, requestParseCurrent, worker) where
+module Daedalus.LSP.Worker
+  ( requestProcess,
+    requestProcessCurrent,
+    requestTokenizeCurrent,
+    worker
+  ) where
 
 import           Control.Concurrent            (threadDelay)
 import           Control.Concurrent.Async      (Async, async, cancel)
@@ -68,9 +73,8 @@ import           Daedalus.LSP.Monad
 -- -----------------------------------------------------------------------------
 -- Asking the worker thread to do something
 
-requestParse :: ServerState -> J.NormalizedUri -> J.Int32 -> Int -> 
-                IO ()
-requestParse sst uri version delay = do
+requestProcess :: ServerState -> J.NormalizedUri -> J.Int32 -> Int -> IO ()
+requestProcess sst uri version delay = do
   m_txt <- runLspT (lspEnv sst) $ do
     mdoc <- getVirtualFile uri
     case mdoc of
@@ -82,23 +86,33 @@ requestParse sst uri version delay = do
       Just vf | version == virtualFileVersion vf ->
                 pure (Just (virtualFileText vf))
       _ -> do
-        liftIO $ debugM "reactor.requestParse" "Requested version is out of date"
+        liftIO $ debugM "reactor.requestProcess" "Requested version is out of date"
         pure Nothing
 
   traverse_ sendReq m_txt
   where
     sendReq txt = atomically $
-      writeTChan (workerChan sst) (ChangedReq uri version delay txt)
+      writeTChan (workerChan sst) (ProcessReq uri version delay txt)
 
-requestParseCurrent :: ServerState -> J.NormalizedUri -> Int -> IO ()
-requestParseCurrent sst uri delay = do
+requestProcessCurrent :: ServerState -> J.NormalizedUri -> Int -> IO ()
+requestProcessCurrent sst uri delay = do
   m_doc <- runLspT (lspEnv sst) $ do
     mdoc <- getVirtualFile uri
     pure $ (\vf -> (virtualFileVersion vf, virtualFileText vf)) <$> mdoc
   traverse_ sendReq m_doc
   where
     sendReq (version, txt) = atomically $
-      writeTChan (workerChan sst) (ChangedReq uri version delay txt)
+      writeTChan (workerChan sst) (ProcessReq uri version delay txt)
+
+requestTokenizeCurrent :: ServerState -> J.NormalizedUri -> IO ()
+requestTokenizeCurrent sst uri = do
+  m_doc <- runLspT (lspEnv sst) $ do
+    mdoc <- getVirtualFile uri
+    pure $ (\vf -> (virtualFileVersion vf, virtualFileText vf)) <$> mdoc
+  traverse_ sendReq m_doc
+  where
+    sendReq (version, txt) = atomically $
+      writeTChan (workerChan sst) (TokenizeReq uri version txt)
 
 -- The workflow is this:
 -- 1. A message comes in telling us about a change to a file
@@ -517,10 +531,14 @@ worker sst = void $ runWorkerM go (initWorkerState (passState sst))
     go = forever $ do
       req <- liftIO $ atomically $ readTChan (workerChan sst)
       case req of
-        ChangedReq uri ver delay txt -> do
+        ProcessReq uri ver delay txt -> do
           addModuleFromRequest uri ver txt
           publishModules
           startTimer sst delay
+
+        TokenizeReq uri ver txt -> do
+          addModuleFromRequest uri ver txt
+          publishModules
 
         ClosedReq uri -> do
           let mFilename = J.uriToFilePath (J.fromNormalizedUri uri)

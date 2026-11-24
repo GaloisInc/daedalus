@@ -43,8 +43,10 @@ import           System.Log.Logger
 import           Daedalus.LSP.Command
 import           Daedalus.LSP.LanguageFeatures
 import           Daedalus.LSP.Monad
-import           Daedalus.LSP.Worker           (requestParse,
-                                                requestParseCurrent, worker)
+import           Daedalus.LSP.Worker           (requestProcess,
+                                                requestProcessCurrent,
+                                                requestTokenizeCurrent,
+                                                worker)
 
 
 -- SI for server impl.
@@ -171,7 +173,7 @@ handle = mconcat
     sst <- ask
     liftIO $ debugM "reactor.handle" $ "Processing didOpen for: " ++ show doc
 
-    liftIO $ requestParse sst uri (doc ^. J.version) debounceTime
+    liftIO $ requestProcess sst uri (doc ^. J.version) debounceTime
 
   , notificationHandler J.SMethod_WorkspaceDidChangeConfiguration $ \msg -> do
       cfg <- getConfig
@@ -193,7 +195,12 @@ handle = mconcat
     let uri = doc ^. J.uri . to J.toNormalizedUri
     liftIO $ debugM "reactor.handle" $ "Processing DidChangeTextDocument for: " ++ show uri
 
-    pure ()
+    -- It's important that we recompute semantic tokens for a document when it
+    -- changes: clients generally request new semantic token information each
+    -- time a document changes, and if we don't keep up, we'll fulfill those
+    -- requests with stale information.
+    sst <- ask
+    liftIO $ requestTokenizeCurrent sst uri
 
   , notificationHandler J.SMethod_TextDocumentDidSave $ \msg -> do
       let uri = msg ^. J.params
@@ -202,7 +209,7 @@ handle = mconcat
                     . to J.toNormalizedUri
       sst <- ask
       liftIO $ debugM "reactor.handle" $ "Processing didSave for: " ++ show uri
-      liftIO $ requestParseCurrent sst uri debounceTime
+      liftIO $ requestProcessCurrent sst uri debounceTime
 
   , notificationHandler J.SMethod_TextDocumentDidClose $ \msg -> do
       let uri = msg ^. J.params
@@ -235,7 +242,7 @@ handle = mconcat
 
       -- vdoc <- getVersionedTextDoc (params ^. J.textDocument)
       rename (untypedErrResp responder) uri pos newName -- vdoc
-  
+
   , requestHandler J.SMethod_TextDocumentSemanticTokensFull $ \req responder -> do
       liftIO $ debugM "reactor.handle" "Processing a textDocument/semanticTokens/full request"
       let params = req ^. J.params
